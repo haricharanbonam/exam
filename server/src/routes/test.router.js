@@ -1,13 +1,12 @@
-
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.js";
 import {
-    createTest,
-    testInterface,
-    handleStart,
-    handleQuestion,
-    handleSubmit
+  createTest,
+  testInterface,
+  handleStart,
+  handleQuestion,
+  handleSubmit,
 } from "../controllers/test.controller.js";
 const testRouter = Router();
 testRouter.post("/create", verifyJWT, createTest);

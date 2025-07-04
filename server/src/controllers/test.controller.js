@@ -6,7 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 
  const createTest = asyncHandler(async (req, res) => {
-  const { title, description, startTime, endTime, durationMinutes, questions } =
+  const { title, description, startTime, endTime, durationMinutes, questions,examCode } =
     req.body;
   if (!title || !questions || questions.length === 0) {
     res.status(400);
@@ -17,10 +17,7 @@ import { ApiError } from "../utils/ApiError.js";
     res.status(404);
     throw new Error("Instructor not found.");
   }
-  if (creator.role !== "instructor") {
-    res.status(403);
-    throw new Error("Only instructors can create tests.");
-  }
+
   const newTest = await Test.create({
     title,
     description,
@@ -29,6 +26,8 @@ import { ApiError } from "../utils/ApiError.js";
     endTime,
     durationMinutes,
     questions,
+    examCode,
+    numberOfQuestions: questions.length,
   });
   creator.createdTests.push(newTest._id);
   await creator.save();
@@ -36,26 +35,30 @@ import { ApiError } from "../utils/ApiError.js";
 });
 
 const testInterface = asyncHandler(async (req, res) => {
-  const { id } = req.body;
-  const testDetails = await Test.findById(id).select("-questions");
+  const { id } = req.params;
+
+  const testDetails = await Test.findOne({ examCode: id }).select("-questions");
   if (!testDetails) {
     throw new ApiError(404, "Test Not Found");
   }
+
   const checkAlreadyAttempted = await User.findOne({
     _id: req.user._id,
-    attemptedTests: id, 
+    attemptedTests: testDetails._id,
   });
   if (checkAlreadyAttempted) {
     throw new ApiError(403, "You have already attempted this test");
   }
+
   const response = {
     ...testDetails.toObject(),
     start: testDetails.startTime < req.time,
-    end: testDetails.endTime < req.time 
+    end: testDetails.endTime < req.time,
   };
 
-  res.status(200).json(new ApiResponse(response));
+  res.status(200).json(new ApiResponse(200,response));
 });
+
 
 const handleStart = asyncHandler(async (req, res) => {
   const { id } = req.body;
