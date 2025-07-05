@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import API from "../utils/axios";
 
 const ExamInterface = () => {
   const { id } = useParams();
   const [test, setTest] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchTestDetails = async () => {
@@ -124,7 +125,7 @@ const ExamInterface = () => {
         ) : (
           <button
             className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg transition-all duration-300"
-            onClick={() => alert("Starting exam...")}
+            onClick={() => navigate(`/test/${id}/start`)}
           >
             Start Exam
           </button>

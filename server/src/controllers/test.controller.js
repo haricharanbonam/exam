@@ -77,9 +77,10 @@ const handleStart = asyncHandler(async (req, res) => {
   await responseDoc.save();
 
   const elapsedTime = req.time - test.startTime;
-  const remainingTime = test.durationMinutes - elapsedTime / (60 * 1000); // convert ms to minutes
+  const remainingTime = test.durationMinutes - elapsedTime / (60 * 1000); 
 
   const response = {
+    ...test.toObject(),
     ...responseDoc.toObject(),
     remainingTime,
   };

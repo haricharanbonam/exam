@@ -6,6 +6,9 @@ import React from "react";
 import Home from "./pages/Home";
 import CreateQuiz from "./pages/CreateQuiz";
 import ExamInterface from "./pages/ExamInterface";
+import StartExamPage from "./pages/StartExamPage";
+import { CameraProvider } from "./context/CameraContext";
+import AttemptTest from "./pages/AttemptTest";
 
 export default function App() {
   return (
@@ -17,7 +20,7 @@ export default function App() {
         path="/"
         element={
           <PrivateRoute>
-            <Home/>
+            <Home />
           </PrivateRoute>
         }
       />
@@ -25,10 +28,21 @@ export default function App() {
         path="/interface/:id"
         element={
           <PrivateRoute>
-            <ExamInterface/>
+            <ExamInterface />
           </PrivateRoute>
         }
       />
+      <Route
+        path="test/:id/start"
+        element={
+          <PrivateRoute>
+            <CameraProvider>
+              <StartExamPage />
+            </CameraProvider>
+          </PrivateRoute>
+        }
+      />
+      <Route path="/attemptTest" element={<AttemptTest />} />
     </Routes>
   );
 }
