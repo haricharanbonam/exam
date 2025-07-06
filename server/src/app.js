@@ -6,6 +6,7 @@ import testRouter from "./routes/test.router.js";
 import { asyncHandler } from "./utils/asyncHandler.js";
 import { ApiError } from "./utils/ApiError.js";
 import { verifyJWT } from "./middlewares/auth.middleware.js";
+import { Test } from "./models/Test.model.js";
 
 const app = express();
 
@@ -55,13 +56,6 @@ app.use(cookieParser());
 app.use("/user", userRouter);
 
 app.use("/test", testRouter);
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || "Internal Server Error",
-    errors: err.errors || [],
-  });
-});
+
 
 export { app };

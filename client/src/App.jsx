@@ -42,6 +42,14 @@ export default function App() {
           </PrivateRoute>
         }
       />
+      <Route
+        path="/exam/:id"
+        element={
+          <PrivateRoute>
+              <AttemptTest />
+          </PrivateRoute>
+        }
+      />
       <Route path="/attemptTest" element={<AttemptTest />} />
     </Routes>
   );

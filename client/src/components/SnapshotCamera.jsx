@@ -26,28 +26,29 @@ function SnapshotCamera() {
       });
 
     const takeSnapshotAndSend = () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (video && canvas) {
-        const ctx = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // const video = videoRef.current;
+      // const canvas = canvasRef.current;
+      // if (video && canvas) {
+      //   const ctx = canvas.getContext("2d");
+      //   canvas.width = video.videoWidth;
+      //   canvas.height = video.videoHeight;
+      //   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        canvas.toBlob((blob) => {
-          const formData = new FormData();
-          formData.append("image", blob, "snapshot.jpg");
+      //   canvas.toBlob((blob) => {
+      //     const formData = new FormData();
+      //     formData.append("image", blob, "snapshot.jpg");
 
-          axios
-            .post("http://your-server-url/upload-snapshot", formData)
-            .then((res) => {
-              console.log("Snapshot sent successfully", res.data);
-            })
-            .catch((err) => {
-              console.error("Failed to send snapshot:", err);
-            });
-        }, "image/jpeg");
-      }
+      //     axios
+      //       .post("", formData)
+      //       .then((res) => {
+      //         console.log("Snapshot sent successfully", res.data);
+      //       })
+      //       .catch((err) => {
+      //         console.error("Failed to send snapshot:", err);
+      //       });
+      //   }, "image/jpeg");
+      // }
+      console.log("Taking snapshot and sending...");
     };
 
     return () => {
@@ -64,7 +65,7 @@ function SnapshotCamera() {
         ref={videoRef}
         autoPlay
         muted
-        className="fixed bottom-6 right-6 w-48 h-36 border-2 border-green-500 rounded overflow-hidden shadow-lg bg-black z-[9999]"
+        className="fixed bottom-6 right-6 w-72 h-48 border-2 border-green-500 rounded overflow-hidden shadow-lg bg-black z-[9999]"
       />
       <canvas ref={canvasRef} style={{ display: "none" }} />
     </>
