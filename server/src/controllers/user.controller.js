@@ -49,16 +49,16 @@ const registerUser = asyncHandler(async (req, res) => {
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
-  sendEmail(
-    createdUser.email,
-    "Welcome to Our Platform",
-    `Hello ${createdUser.fullName},
-    \n\nThank you for registering on our platform. We are excited to have you with us!\n\nBest regards,\nThe Team
-    To verify your email, please click on the link below:\n\n
-    <a href="${process.env.FRONTEND_URL}/verify-email?token=${createdUser._id}">Verify Email</a>
-    \n\nIf you did not register, please ignore this email.
-    `
-  );
+  // sendEmail(
+  //   createdUser.email,
+  //   "Welcome to Our Platform",
+  //   `Hello ${createdUser.fullName},
+  //   \n\nThank you for registering on our platform. We are excited to have you with us!\n\nBest regards,\nThe Team
+  //   To verify your email, please click on the link below:\n\n
+  //   <a href="${process.env.FRONTEND_URL}/verify-email?token=${createdUser._id}">Verify Email</a>
+  //   \n\nIf you did not register, please ignore this email.
+  //   `
+  // );
   if (!createdUser) {
     throw new ApiError(500, "Something went wrong while registering the user ");
   }

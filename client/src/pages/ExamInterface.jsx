@@ -7,6 +7,7 @@ const ExamInterface = () => {
   const { id } = useParams();
   const [test, setTest] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [testId, setTestId] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,6 +15,7 @@ const ExamInterface = () => {
       try {
         const { data } = await API.get(`/test/interface/${id}`);
         console.log("Fetched test details:", data);
+        setTestId(data.data._id);
         setTest(data.data);
       } catch (error) {
         console.error("Failed to fetch test details:", error);
@@ -127,7 +129,7 @@ const ExamInterface = () => {
             className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg transition-all duration-300"
             onClick={() => navigate(`/test/${id}/start`)}
           >
-            Start Exam
+            {test?.resumeFlag? `Resume Exam` : `Start Exam`}
           </button>
         )}
       </div>

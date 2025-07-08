@@ -1,3 +1,4 @@
+// Corrected AttemptTest.jsx
 import React, { useState, useEffect, useRef } from "react";
 import API from "../utils/axios";
 import SnapshotCamera from "../components/SnapshotCamera.jsx";
@@ -7,30 +8,28 @@ function AttemptTest() {
   const location = useLocation();
   const quizId = useParams().id;
   const nav = useNavigate();
-
   const [quizData, setQuizData] = useState([]);
   const [index, setIndex] = useState(0);
   const [responses, setResponses] = useState([]);
   const [option, setOption] = useState(null);
   const [reviewFlags, setReviewFlags] = useState([]);
-  const [remainingTime, setRemainingTime] = useState(null); // in seconds
+  const [remainingTime, setRemainingTime] = useState(null);
   const [loading, setLoading] = useState(false);
-
+  const [testId, setTestId] = useState("");
   const timerRef = useRef(null);
-
   useEffect(() => {
     const fetchQuizData = async () => {
       try {
-        const response = await API.post(`/test/start`, {
-          id: quizId,
-        });
-        console.log("Quiz data fetched:", response.data);
-        setQuizData(response.data.data.questions);
-        setResponses(Array(response.data.data.questions.length).fill(null));
-        setReviewFlags(Array(response.data.data.questions.length).fill(false));
-        setRemainingTime(
-          Math.max(0, Math.floor(response.data.data.remainingTime * 60))
-        );
+        const response = await API.post(`/test/start`, { id:testId});
+        const data = response.data.data;
+        console.log(data);
+        
+        console.log("Quiz data fetched:", data);
+        setQuizData(data.questions);
+        setResponses(Array(data.questions.length).fill(null));
+        setReviewFlags(Array(data.questions.length).fill(false));
+        setTestId(data._id);
+        setRemainingTime(Math.max(0, Math.floor(data.remainingTime * 60)));
       } catch (error) {
         console.error("Error fetching quiz:", error);
       }
@@ -41,7 +40,6 @@ function AttemptTest() {
 
   useEffect(() => {
     if (remainingTime === null) return;
-
     timerRef.current = setInterval(() => {
       setRemainingTime((prev) => {
         if (prev <= 1) {
@@ -55,13 +53,11 @@ function AttemptTest() {
 
     return () => clearInterval(timerRef.current);
   }, [remainingTime]);
-
   const formatTime = (seconds) => {
     const mins = String(Math.floor(seconds / 60)).padStart(2, "0");
     const secs = String(seconds % 60).padStart(2, "0");
     return `${mins}:${secs}`;
   };
-
   const handleOption = (i) => {
     setOption(i);
     const updatedResponses = [...responses];
@@ -82,7 +78,8 @@ function AttemptTest() {
         questionIndex,
         selectedOptionIndex,
         markForReview,
-        id: quizId,
+
+        id:testId,
       });
 
       const updatedFlags = [...reviewFlags];
@@ -124,7 +121,7 @@ function AttemptTest() {
         id: quizId,
       });
       console.log("Submitted:", response.data.data);
-      nav("/success"); // or your submission confirmation page
+      nav("/success");
     } catch (error) {
       console.error("Error during submission:", error);
     } finally {
@@ -133,8 +130,8 @@ function AttemptTest() {
   };
 
   useEffect(() => {
-    if (responses[index] !== option) setOption(responses[index]);
-  }, [index, responses, option]);
+    setOption(responses[index]);
+  }, [index]);
 
   if (quizData.length === 0) return <p>Loading quiz...</p>;
 
@@ -146,7 +143,7 @@ function AttemptTest() {
         <div className="col-span-3">
           <div className="flex justify-between items-center mb-4">
             <p className="text-xl font-bold text-gray-800">
-              Q{index + 1}: {quizData[index].question}
+              Q{index + 1}: {quizData[index].questionText}
             </p>
             <span className="text-lg font-mono text-red-600">
               ⏰ {remainingTime !== null ? formatTime(remainingTime) : "--:--"}
@@ -188,7 +185,7 @@ function AttemptTest() {
               Mark for Review
             </button>
             <button
-              onClick={()=>handleSubmit}
+              onClick={handleSubmit}
               className="bg-red-600 text-white py-2 px-4 rounded ml-auto"
             >
               Submit
@@ -202,15 +199,13 @@ function AttemptTest() {
               <span
                 key={i}
                 onClick={() => gotoQuestion(i)}
-                className={`h-10 w-10 rounded-full flex items-center justify-center cursor-pointer
-                ${
+                className={`h-10 w-10 rounded-full flex items-center justify-center cursor-pointer ${
                   reviewFlags[i]
                     ? "bg-purple-600"
                     : res === null
                     ? "bg-red-500"
                     : "bg-green-500"
-                }
-                text-white`}
+                } text-white`}
                 title={
                   reviewFlags[i]
                     ? "Marked for review"

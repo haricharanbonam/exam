@@ -44,24 +44,28 @@ const createTest = asyncHandler(async (req, res) => {
 
 const testInterface = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const now = new Date(req.time); // make sure this is a Date!
+  const now = new Date(req.time);
   const testDetails = await Test.findOne({ examCode: id }).select("-questions");
   if (!testDetails) {
     throw new ApiError(404, "Test Not Found");
   }
 
-  const checkAlreadyAttempted = await User.findOne({
-    _id: req.user._id,
-    attemptedTests: testDetails._id,
+  // const checkAlreadyAttempted = await User.findOne({
+  //   _id: req.user._id,
+  //   attemptedTests: testDetails._id,
+  // });
+  const checkAlreadyAttempted = await Response.findOne({
+    person: req.user._id,
+    test: testDetails._id,
   });
-  if (checkAlreadyAttempted) {
+  if (checkAlreadyAttempted?.submit) {
     throw new ApiError(403, "You have already attempted this test");
   }
-
   const response = {
     ...testDetails.toObject(),
     start: testDetails.startTime <= now,
     end: testDetails.endTime <= now,
+    resumeFlag: checkAlreadyAttempted || false,
   };
 
   res.status(200).json(new ApiResponse(200, response));
@@ -69,43 +73,105 @@ const testInterface = asyncHandler(async (req, res) => {
 
 const handleStart = asyncHandler(async (req, res) => {
   const { id } = req.body;
-  console.log("Starting test with examCode:", id);
   const user_id = req.user._id;
+  const now = new Date(req.time);
+
+  console.log("Starting test with examCode:", id);
+
   const test = await Test.findOne({ examCode: id });
   if (!test) {
     throw new ApiError(404, "Test Not Found");
   }
+
+  if (now < new Date(test.startTime) || now > new Date(test.endTime)) {
+    throw new ApiError(403, "Test is not active now");
+  }
+
   let responseDoc = await Response.findOne({ test: test._id, person: user_id });
+
   if (!responseDoc) {
+    // First time starting — set the startedAt time
     responseDoc = new Response({
       test: test._id,
       person: user_id,
-      startedAt: req.time,
+      startedAt: now,
     });
     await responseDoc.save();
   }
-  const elapsedTimeMs = new Date(req.time) - new Date(test.startTime);
-  const remainingTime = test.durationMinutes - elapsedTimeMs / (60 * 1000);
+
+  const startedAt = new Date(responseDoc.startedAt);
+  const elapsedTimeMs = now - startedAt;
+  const remainingTime = Math.max(
+    0,
+    test.durationMinutes - elapsedTimeMs / (60 * 1000)
+  );
+
   const response = {
     ...test.toObject(),
     ...responseDoc.toObject(),
     remainingTime,
+    startedAt, // Optional: include explicitly if needed
   };
+
+  res.status(200).json(new ApiResponse(200, response));
+});
+
+const handleResume = asyncHandler(async (req, res) => {
+  const { id } = req.body;
+  const user_id = req.user._id;
+  const now = new Date(req.time);
+  console.log("Resuming test with examCode:", id);
+  const test = await Test.findOne({ examCode: id });
+  if (!test) {
+    throw new ApiError(404, "Test Not Found");
+  }
+  if (now < new Date(test.startTime) || now > new Date(test.endTime)) {
+    throw new ApiError(403, "Test is not active now");
+  }
+  const responseDoc = await Response.findOne({
+    test: test._id,
+    person: user_id,
+  });
+  if (!responseDoc) {
+    throw new ApiError(403, "Test not started yet");
+  }
+  const startedAt = new Date(responseDoc.startedAt);
+  const elapsedTimeMs = now - startedAt;
+  const remainingTime = Math.max(
+    0,
+    test.durationMinutes - elapsedTimeMs / (60 * 1000)
+  );
+
+  const response = {
+    ...test.toObject(),
+    ...responseDoc.toObject(),
+    remainingTime,
+    startedAt,
+  };
+
   res.status(200).json(new ApiResponse(200, response));
 });
 
 const handleQuestion = asyncHandler(async (req, res) => {
   const { id, questionIndex, selectedOptionIndex } = req.body;
   const user_id = req.user._id;
-
-  const response = await Response.findOne({ test: id, person: user_id });
-  if (response && response.submit) {
-    throw new ApiError(403, "Test already submitted");
+  if (id == null || questionIndex == null || selectedOptionIndex == null) {
+    throw new ApiError(
+      400,
+      "All fields (id, questionIndex, selectedOptionIndex) are required"
+    );
   }
+  const test = await Test.findOne({ examCode: id });
+  if (!test) {
+    throw new ApiError(404, "Test Not Found");
+  }
+  const response = await Response.findOne({ test: test._id, person: user_id });
   if (!response) {
     throw new ApiError(404, "Response Not Found");
   }
-
+  if (response.submit) {
+    throw new ApiError(403, "Test already submitted");
+  }
   const existingAnswer = response.answers.find(
     (ans) => ans.questionIndex === questionIndex
   );
@@ -118,31 +184,26 @@ const handleQuestion = asyncHandler(async (req, res) => {
   response.markModified("answers");
   await response.save();
 
-  res.status(200).json(new ApiResponse("Answer recorded successfully"));
+  res.status(200).json(new ApiResponse(200, "Answer recorded successfully"));
 });
 
 const handleSubmit = asyncHandler(async (req, res) => {
   const { id: examCode } = req.body;
   const user_id = req.user._id;
-
-  // ✅ 1) Find Test by examCode
   const test = await Test.findOne({ examCode });
   if (!test) {
     throw new ApiError(404, "Test Not Found");
   }
 
-  // ✅ 2) Find Response by test._id + person
   const response = await Response.findOne({ test: test._id, person: user_id });
   if (!response) {
     throw new ApiError(404, "Response Not Found");
   }
 
-  // ✅ 3) Prevent duplicate submission
   if (response.submit) {
     throw new ApiError(403, "Test already submitted");
   }
 
-  // ✅ 4) Compute the score
   let score = 0;
   response.answers.forEach((answer) => {
     const question = test.questions[answer.questionIndex];
@@ -154,12 +215,15 @@ const handleSubmit = asyncHandler(async (req, res) => {
     }
   });
 
-  // ✅ 5) Update response fields
   response.completedAt = req.time;
   response.submit = true;
   response.score = score;
 
   await response.save();
+
+  await User.findByIdAndUpdate(user_id, {
+    $addToSet: { attemptedTests: response._id },
+  });
 
   res.status(200).json(new ApiResponse("Test submitted successfully"));
 });
@@ -172,6 +236,36 @@ const getAllTests = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse("Tests retrieved successfully", tests));
 });
 
+
+const getAllResults = asyncHandler(async (req, res) => {
+  const user_id = req.user._id;
+
+  const user = await User.findById(user_id).populate({
+    path: "attemptedTests",
+    populate: {
+      path: "test",
+      select: "title description examCode durationMinutes",
+    },
+    select: "score submit completedAt startedAt",
+  });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const results = user.attemptedTests.map((response) => ({
+    testTitle: response.test?.title || "Unknown Test",
+    examCode: response.test?.examCode || "N/A",
+    duration: response.test?.durationMinutes || 0,
+    startedAt: response.startedAt,
+    completedAt: response.completedAt,
+    score: response.score,
+    submitted: response.submit,
+  }));
+
+  res.status(200).json(new ApiResponse(200, results));
+});
+
 export {
   createTest,
   testInterface,
@@ -179,4 +273,6 @@ export {
   handleQuestion,
   handleSubmit,
   getAllTests,
+  handleResume,
+  getAllResults
 };

@@ -9,21 +9,25 @@ function StartExamPage() {
   const { stream, videoRef } = useCamera();
   const [cameraAllowed, setCameraAllowed] = useState(false);
   const [fullscreenAllowed, setFullscreenAllowed] = useState(false);
-
-  //   const requestCamera = async () => {
-  //     try {
-  //       await navigator.mediaDevices.getUserMedia({ video: true });
-  //       setCameraAllowed(true);
-  //     } catch (err) {
-  //       alert(`Camera access failed: ${err.message}`);
-  //     }
-  //   };
+  const [test, setTest] = useState(null);
+  useEffect(() => {
+    const fetchTestDetails = async () => {
+      try {
+        const { data } = await API.get(`/test/interface/${id}`);
+        console.log("Fetched test details:", data);
+        setTest(data.data);
+      } catch (error) {
+        console.error("Failed to fetch test details:", error);
+      } finally {
+      }
+    };
+    fetchTestDetails();
+  }, [id]);
   const requestCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: true,
       });
-      // Immediately stop all tracks so camera doesn't stay active:
       mediaStream.getTracks().forEach((track) => track.stop());
       setCameraAllowed(true);
     } catch (err) {
@@ -50,9 +54,7 @@ function StartExamPage() {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen p-6 bg-gray-50">
-      {/* LEFT SIDE */}
       <div className="flex-1 space-y-6">
-        {/* CAMERA PERMISSION BOX */}
         <div
           className={`p-6 rounded-lg border ${
             cameraAllowed
@@ -78,7 +80,6 @@ function StartExamPage() {
           )}
         </div>
 
-        {/* FULLSCREEN PERMISSION BOX */}
         <div
           className={`p-6 rounded-lg border ${
             fullscreenAllowed
@@ -105,7 +106,6 @@ function StartExamPage() {
         </div>
       </div>
 
-      {/* RIGHT SIDE */}
       <div className="flex-1 flex items-center justify-center mt-8 md:mt-0">
         <button
           disabled={!canStart}
@@ -116,7 +116,11 @@ function StartExamPage() {
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
         >
-          {canStart ? "Start Test" : "Complete Permissions"}
+          {canStart
+            ? test?.resumeFlag
+              ? "Resume Test"
+              : "Start Test"
+            : "Complete Permissions"}
         </button>
       </div>
     </div>

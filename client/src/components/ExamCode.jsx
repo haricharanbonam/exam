@@ -8,7 +8,7 @@ export default function ExamCode() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (code.trim()) {
-      navigate(`/exam/${code}`);
+      navigate(`/interface/${code}`);
     }
   };
 
