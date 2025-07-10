@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCamera } from "../context/CameraContext";
 import ProctorCamera from "../components/ProctorCamera";
+import API from "../utils/axios";
 
 function StartExamPage() {
   const { id } = useParams();

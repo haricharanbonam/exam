@@ -194,7 +194,6 @@ const handleSubmit = asyncHandler(async (req, res) => {
   if (!test) {
     throw new ApiError(404, "Test Not Found");
   }
-
   const response = await Response.findOne({ test: test._id, person: user_id });
   if (!response) {
     throw new ApiError(404, "Response Not Found");
@@ -203,10 +202,15 @@ const handleSubmit = asyncHandler(async (req, res) => {
   if (response.submit) {
     throw new ApiError(403, "Test already submitted");
   }
-
   let score = 0;
   response.answers.forEach((answer) => {
     const question = test.questions[answer.questionIndex];
+    console.log(
+      `Q${answer.questionIndex + 1}: Selected ${
+        answer.selectedOptionIndex
+      }, Correct ${question?.correctAnswerIndex}`
+    );
+
     if (
       question &&
       question.correctAnswerIndex === answer.selectedOptionIndex
@@ -214,6 +218,7 @@ const handleSubmit = asyncHandler(async (req, res) => {
       score++;
     }
   });
+  
 
   response.completedAt = req.time;
   response.submit = true;
@@ -239,7 +244,6 @@ const getAllTests = asyncHandler(async (req, res) => {
 
 const getAllResults = asyncHandler(async (req, res) => {
   const user_id = req.user._id;
-
   const user = await User.findById(user_id).populate({
     path: "attemptedTests",
     populate: {

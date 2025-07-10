@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import API from "../utils/axios";
 import SnapshotCamera from "../components/SnapshotCamera.jsx";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import SubmitPopup from "../components/SubmitPopup.jsx";
 
 function AttemptTest() {
   const location = useLocation();
@@ -16,14 +17,14 @@ function AttemptTest() {
   const [remainingTime, setRemainingTime] = useState(null);
   const [loading, setLoading] = useState(false);
   const [testId, setTestId] = useState("");
+  const [popup, setPopup] = useState(false);
   const timerRef = useRef(null);
   useEffect(() => {
     const fetchQuizData = async () => {
       try {
-        const response = await API.post(`/test/start`, { id:testId});
+        const response = await API.post(`/test/start`, { id: quizId });
         const data = response.data.data;
         console.log(data);
-        
         console.log("Quiz data fetched:", data);
         setQuizData(data.questions);
         setResponses(Array(data.questions.length).fill(null));
@@ -65,6 +66,12 @@ function AttemptTest() {
     setResponses(updatedResponses);
   };
 
+  const handleCancel = () => {
+    setPopup(false);
+  };
+  const handleConfirm = () => {
+    handleSubmit();
+  };
   const gotoQuestion = (i) => {
     setIndex(i);
   };
@@ -79,7 +86,7 @@ function AttemptTest() {
         selectedOptionIndex,
         markForReview,
 
-        id:testId,
+        id: quizId,
       });
 
       const updatedFlags = [...reviewFlags];
@@ -185,7 +192,7 @@ function AttemptTest() {
               Mark for Review
             </button>
             <button
-              onClick={handleSubmit}
+              onClick={() => setPopup(true)}
               className="bg-red-600 text-white py-2 px-4 rounded ml-auto"
             >
               Submit
@@ -225,6 +232,10 @@ function AttemptTest() {
         <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-30 z-50">
           <div className="h-10 w-10 border-t-4 border-white animate-spin rounded-full"></div>
         </div>
+      )}
+
+      {popup && (
+        <SubmitPopup onConfirm={handleConfirm} onCancel={handleCancel} />
       )}
     </div>
   );
