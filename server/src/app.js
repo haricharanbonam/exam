@@ -7,6 +7,7 @@ import { asyncHandler } from "./utils/asyncHandler.js";
 import { ApiError } from "./utils/ApiError.js";
 import { verifyJWT } from "./middlewares/auth.middleware.js";
 import { Test } from "./models/Test.model.js";
+import { Response } from "./models/Response.model.js";
 
 const app = express();
 
@@ -33,14 +34,13 @@ app.use(
 );
 
 app.use("/", (req, res, next) => {
-  console.log(req.method+req.url);
+  console.log(req.method + req.url);
   next();
 });
-app.use ("/",(req,res,next)=>
-{
+app.use("/", (req, res, next) => {
   req.time = new Date().toISOString();
   next();
-})
+});
 
 app.use(
   express.urlencoded({
@@ -49,6 +49,36 @@ app.use(
   })
 );
 
+
+
+app.get("/check", async (req, res) => {
+  try {
+    const testId = "686d26f3f7523a92f1788555";
+
+    const newStartTime = new Date(); // Set current time
+    const newEndTime = new Date();
+    newEndTime.setDate(newEndTime.getDate() + 1); // Add 1 day to current time
+
+    const updatedTest = await Test.findOneAndUpdate(
+      {examCode : "JSFUN123"},
+      {
+        startTime: newStartTime,
+        endTime: newEndTime,
+      },
+      { new: true }
+    );
+
+    if (!updatedTest) {
+      return res.status(404).json({ message: "Test not found." });
+    }
+
+    console.log("Test time updated:", updatedTest);
+    res.json(updatedTest);
+  } catch (error) {
+    console.error("Error updating test time:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 app.use(express.static("public"));
 
 app.use(cookieParser());
@@ -56,6 +86,5 @@ app.use(cookieParser());
 app.use("/user", userRouter);
 
 app.use("/test", testRouter);
-
 
 export { app };

@@ -4,6 +4,7 @@ import API from "../utils/axios";
 import SnapshotCamera from "../components/SnapshotCamera.jsx";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import SubmitPopup from "../components/SubmitPopup.jsx";
+import Popup from "../components/Popup.jsx";
 
 function AttemptTest() {
   const location = useLocation();
@@ -19,6 +20,7 @@ function AttemptTest() {
   const [testId, setTestId] = useState("");
   const [popup, setPopup] = useState(false);
   const timerRef = useRef(null);
+  const [popupMessage, setPopupMessage] = useState("");
   useEffect(() => {
     const fetchQuizData = async () => {
       try {
@@ -58,6 +60,9 @@ function AttemptTest() {
     const mins = String(Math.floor(seconds / 60)).padStart(2, "0");
     const secs = String(seconds % 60).padStart(2, "0");
     return `${mins}:${secs}`;
+  };
+  const showPopup = (message) => {
+    setPopupMessage(message);
   };
   const handleOption = (i) => {
     setOption(i);
@@ -144,8 +149,11 @@ function AttemptTest() {
 
   return (
     <div className="bg-gradient-to-br from-indigo-500 to-blue-500 min-h-screen flex justify-center items-center relative">
-      <SnapshotCamera />
-
+      <SnapshotCamera
+        userId={JSON.parse(localStorage.getItem("user"))._id}
+        testId={quizId}
+        onSuspiciousActivity={showPopup}
+      />
       <div className="bg-white w-full max-w-4xl p-6 rounded-lg shadow-lg grid grid-cols-4 gap-4">
         <div className="col-span-3">
           <div className="flex justify-between items-center mb-4">
@@ -236,6 +244,9 @@ function AttemptTest() {
 
       {popup && (
         <SubmitPopup onConfirm={handleConfirm} onCancel={handleCancel} />
+      )}
+      {popupMessage && (
+        <Popup message={popupMessage} onClose={() => setPopupMessage("")} />
       )}
     </div>
   );

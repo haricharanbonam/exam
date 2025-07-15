@@ -1,5 +1,3 @@
-# services/object_detection.py
-
 import cv2
 import numpy as np
 
@@ -13,6 +11,8 @@ with open(coco_names, 'r') as f:
 net = cv2.dnn.readNet(yolo_weights, yolo_cfg)
 layer_names = net.getLayerNames()
 output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers().flatten()]
+
+ALLOWED_CLASSES = {"person", "cell phone", "laptop", "tvmonitor", "mouse", "keyboard", "bottle"}
 
 def detect_objects_from_file(image_path):
     image = cv2.imread(image_path)
@@ -30,5 +30,7 @@ def detect_objects_from_file(image_path):
             confidence = scores[class_id]
             if confidence > 0.3:
                 label = class_names[class_id]
-                detected_objects.add(label)
+                if label in ALLOWED_CLASSES:  # 👈 Only include if it's relevant
+                    detected_objects.add(label)
+
     return list(detected_objects)

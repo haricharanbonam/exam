@@ -1,10 +1,9 @@
-from pymongo import MongoClient
+# from pymongo import MongoClient
 
-MONGO_URI = "mongodb+srv://haricharanbonam:hari%402006@cluster0.pqjid.mongodb.net"
-DB_NAME = "examDB"
+# MONGO_URI = "mongodb+srv://haricharanbonam:hari%402006@cluster0.pqjid.mongodb.net"
+# DB_NAME = "examDB"
 
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
+# client = MongoClient(MONGO_URI)
+# db = client[DB_NAME]
 
-# Collection for logging remarks
-remarks_collection = db["proctor_remarks"]
+# remarks_collection = db["proctor_remarks"]

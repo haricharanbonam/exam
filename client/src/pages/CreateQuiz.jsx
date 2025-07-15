@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import API from "../utils/axios";
 import ExamCode from "../components/ExamCode";
+import TextShareModal from "../components/CopyCode";
 
 function CreateQuiz() {
   const [question, setQuestion] = useState("");
@@ -13,7 +14,8 @@ function CreateQuiz() {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
-
+  const [showModal, setShowModal] = useState(false);
+  const [code,setCode]=useState("");
   const handleOptionChange = (index, value) => {
     const updatedOptions = [...options];
     updatedOptions[index] = value;
@@ -64,7 +66,7 @@ function CreateQuiz() {
       alert("Please fill all quiz details and add at least one question.");
       return;
     }
-
+    setCode(generateCode());
     const quizData = {
       title,
       description,
@@ -72,7 +74,7 @@ function CreateQuiz() {
       endTime,
       durationMinutes,
       questions,
-      examCode: generateCode() || "QT00",
+      examCode: code  || "QT00",
     };
 
     try {
@@ -96,7 +98,6 @@ function CreateQuiz() {
         }}
         className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg"
       >
-        {/* Quiz info */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Quiz Title:
@@ -251,6 +252,12 @@ function CreateQuiz() {
           Submit Quiz
         </button>
       </form>
+      {showModal && (
+        <TextShareModal
+          link={code}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </div>
   );
 }
