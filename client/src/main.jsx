@@ -6,9 +6,7 @@ import "./index.css"; // ✅ Global styles
 import App from "./App"; // ✅ Your root app component
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
 );

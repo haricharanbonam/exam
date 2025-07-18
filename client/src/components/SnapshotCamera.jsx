@@ -1,83 +1,141 @@
 import React, { useEffect, useRef } from "react";
+import Webcam from "react-webcam";
 import axios from "axios";
 
+const videoConstraints = {
+  width: 1280,
+  height: 720,
+  facingMode: "user",
+};
+
 function SnapshotCamera({ userId, testId, onSuspiciousActivity }) {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-
+  const webcamRef = useRef(null);
   useEffect(() => {
-    let localStream;
-    let snapshotInterval;
+    let isMounted = true;
 
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
-      .then((stream) => {
-        localStream = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
+    const captureAndWait = async () => {
+      if (!isMounted) return;
 
-        // ⏱️ Snapshot every 6 seconds (6000 milliseconds)
-        snapshotInterval = setInterval(() => {
-          takeSnapshotAndSend();
-        }, 6000);
-      })
-      .catch((err) => {
-        console.error("Camera access error:", err);
-      });
+      try {
+        await captureSnapshot(); // wait for the snapshot to finish
+      } catch (err) {
+        console.error("Snapshot error:", err);
+      }
 
-    const takeSnapshotAndSend = () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (video && canvas) {
-        const ctx = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Wait 6 seconds, then capture again
+      setTimeout(() => {
+        captureAndWait();
+      }, 6000);
+    };
 
-        canvas.toBlob((blob) => {
+    captureAndWait(); // Initial call
+
+    return () => {
+      isMounted = false; // Cleanup to stop if component unmounts
+    };
+  }, []);
+
+  // const captureSnapshot = async () => {
+  //   if (webcamRef.current) {
+  //     const imageSrc = webcamRef.current.getScreenshot();
+
+  //     if (imageSrc) {
+  //       // Convert base64 to Blob
+  //       const byteString = atob(imageSrc.split(",")[1]);
+  //       const mimeString = imageSrc.split(",")[0].split(":")[1].split(";")[0];
+  //       const ab = new ArrayBuffer(byteString.length);
+  //       const ia = new Uint8Array(ab);
+  //       for (let i = 0; i < byteString.length; i++) {
+  //         ia[i] = byteString.charCodeAt(i);
+  //       }
+  //       const blob = new Blob([ab], { type: mimeString });
+
+  //       // Append to FormData
+  //       const formData = new FormData();
+  //       formData.append("image", blob, "snapshot.jpg");
+  //       formData.append("userId", userId);
+  //       formData.append("testId", testId);
+
+  //       try {
+  //         const response = await axios.post(
+  //           "http://127.0.0.1:8000/detect",
+  //           formData,
+  //           {
+  //             headers: {
+  //               "Content-Type": "multipart/form-data",
+  //             },
+  //           }
+  //         );
+
+  //         console.log("Snapshot logged:", response.data);
+
+  //         if (response.data.suspicious === true && onSuspiciousActivity) {
+  //           onSuspiciousActivity(response.data);
+  //         }
+  //       } catch (error) {
+  //         console.error(
+  //           "Snapshot logging failed:",
+  //           error.response?.data || error.message
+  //         );
+  //       }
+  //     }
+  //   }
+  // };
+
+  const captureSnapshot = async () => {
+    if (webcamRef.current) {
+      const imageSrc = webcamRef.current.getScreenshot();
+
+      if (imageSrc) {
+        try {
+          // Convert base64 to a Blob
+          const byteString = atob(imageSrc.split(",")[1]);
+          const mimeString = imageSrc.split(",")[0].split(":")[1].split(";")[0];
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          const blob = new Blob([ab], { type: mimeString });
+
+          // Prepare form data
           const formData = new FormData();
           formData.append("image", blob, "snapshot.jpg");
           formData.append("userId", userId);
           formData.append("testId", testId);
 
-          axios
-            .post("http://127.0.0.1:8000/detect", formData)
-            .then((res) => {
-              const { suspicious, objects } = res.data;
-              console.log("Snapshot result:", { suspicious, objects });
+          const response = await axios.post(
+            "http://127.0.0.1:8000/detect",
+            formData,
+            {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          );
 
-              if (suspicious) {
-                onSuspiciousActivity?.("⚠️ Cheating detected!");
-              }
-            })
-            .catch((err) => {
-              console.error("Failed to send snapshot:", err);
-            });
-        }, "image/jpeg");
+          console.log("Snapshot logged:", response.data);
+          if (response.data.suspicious === true && onSuspiciousActivity) {
+            onSuspiciousActivity(response.data);
+          }
+        } catch (error) {
+          console.error("Snapshot logging failed:", error);
+        }
       }
-
-      console.log("Snapshot captured and sent...");
-    };
-
-    return () => {
-      clearInterval(snapshotInterval);
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [userId, testId, onSuspiciousActivity]);
+    }
+  };
 
   return (
-    <>
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        className="fixed bottom-6 right-6 w-72 h-48 border-2 border-green-500 rounded overflow-hidden shadow-lg bg-black z-[9999]"
+    <div>
+      <Webcam
+        ref={webcamRef}
+        audio={false}
+        screenshotFormat="image/jpeg"
+        videoConstraints={videoConstraints}
+        style={{ width: "100%", borderRadius: "12px" }}
+        screenshotQuality={0.2}
       />
-      <canvas ref={canvasRef} style={{ display: "none" }} />
-    </>
+    </div>
   );
 }
 

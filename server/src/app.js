@@ -8,6 +8,7 @@ import { ApiError } from "./utils/ApiError.js";
 import { verifyJWT } from "./middlewares/auth.middleware.js";
 import { Test } from "./models/Test.model.js";
 import { Response } from "./models/Response.model.js";
+import bodyParser from "body-parser"
 
 const app = express();
 
@@ -25,6 +26,8 @@ app.use(
     credentials: true,
   })
 );
+
+app.use(bodyParser.json({ limit: "5mb" }));
 
 app.use(
   express.json({
@@ -49,21 +52,18 @@ app.use(
   })
 );
 
-
-
 app.get("/check", async (req, res) => {
   try {
     const testId = "686d26f3f7523a92f1788555";
-
     const newStartTime = new Date(); // Set current time
     const newEndTime = new Date();
     newEndTime.setDate(newEndTime.getDate() + 1); // Add 1 day to current time
-
     const updatedTest = await Test.findOneAndUpdate(
-      {examCode : "JSFUN123"},
+      { examCode: "JSFUN123" },
       {
         startTime: newStartTime,
         endTime: newEndTime,
+        submit: false,
       },
       { new: true }
     );
@@ -71,14 +71,27 @@ app.get("/check", async (req, res) => {
     if (!updatedTest) {
       return res.status(404).json({ message: "Test not found." });
     }
+    const rest = await Response.deleteMany({
+ 
+    });
 
-    console.log("Test time updated:", updatedTest);
     res.json(updatedTest);
   } catch (error) {
     console.error("Error updating test time:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
+
+app.post("/detect", (req, res) => {
+  res.json({
+    objects: {
+      person: 1,
+      laptop: 0,
+    },
+    suspicious: false,
+  });
+});
+
 app.use(express.static("public"));
 
 app.use(cookieParser());
