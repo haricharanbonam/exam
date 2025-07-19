@@ -11,7 +11,7 @@ import { CameraProvider } from "./context/CameraContext";
 import AttemptTest from "./pages/AttemptTest";
 import { useEffect } from "react";
 import { useState } from "react";
-
+import Profile from "./pages/Profile";
 export default function App() {
   // const [isOnline, setIsOnline] = useState(true);
   // useEffect(() => {
@@ -39,6 +39,17 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignupForm />} />
         <Route path="/create" element={<CreateQuiz />} />
+        <Route path="/profile/:username" element={<Profile />} />
+        <Route
+          path="/success"
+          element={
+            <>
+              <h1 className="text-2xl font-bold text-center mt-10">
+                Quiz Submitted Successfully!
+              </h1>
+            </>
+          }
+        />
         <Route
           path="/"
           element={

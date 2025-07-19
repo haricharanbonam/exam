@@ -17,52 +17,74 @@
 // };
 
 // export default Popup;
-
 import React from "react";
-
 const Popup = ({ message, onClose }) => {
+  const cheatCount = message?.cheatCount;
   return (
     <div
       style={{
         position: "fixed",
-        bottom: "20px",
-        right: "20px",
-        backgroundColor: "#fff",
-        padding: "16px",
-        border: "2px solid #333",
-        borderRadius: "8px",
-        boxShadow: "0 0 10px rgba(0,0,0,0.2)",
+        top: 0,
+        left: 0,
+        height: "100vh",
+        width: "100vw",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        backdropFilter: "blur(3px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         zIndex: 9999,
-        width: "300px",
       }}
     >
-      <h3 style={{ marginBottom: "8px" }}>⚠️ Alert</h3>
-
-      {typeof message === "object" ? (
-        <div>
-          <p>👤 Person: {message.objects?.person ?? 0}</p>
-          <p>💻 Laptop: {message.objects?.laptop ?? 0}</p>
-          <p>🔎 Suspicious: {message.suspicious ? "Yes" : "No"}</p>
-        </div>
-      ) : (
-        <p>{message}</p>
-      )}
-
-      <button
-        onClick={onClose}
+      <div
         style={{
-          marginTop: "12px",
-          padding: "6px 12px",
-          backgroundColor: "#f44336",
-          color: "#fff",
-          border: "none",
-          borderRadius: "4px",
-          cursor: "pointer",
+          backgroundColor: "#fff",
+          padding: "32px",
+          borderRadius: "12px",
+          width: "90%",
+          maxWidth: "400px",
+          textAlign: "center",
+          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.2)",
         }}
       >
-        Close
-      </button>
+        <h2 style={{ marginBottom: "16px", color: "#d32f2f" }}>
+          ⚠️ Cheating Detected
+        </h2>
+        {cheatCount ? (
+          <>
+            <p style={{ fontSize: "16px", marginBottom: "12px" }}>
+              You have been detected cheating <strong>{cheatCount}</strong> time
+              {cheatCount > 1 ? "s" : ""}.
+            </p>
+            <p
+              style={{ fontSize: "15px", color: "#555", marginBottom: "20px" }}
+            >
+              Further violations will result in immediate submission of your
+              test.
+            </p>
+          </>
+        ) : (
+          <p style={{ fontSize: "16px", marginBottom: "20px" }}>
+            Suspicious activity detected.
+          </p>
+        )}
+        <button
+          onClick={onClose}
+          style={{
+            padding: "10px 24px",
+            backgroundColor: "#1976d2",
+            color: "#fff",
+            border: "none",
+            borderRadius: "6px",
+            fontSize: "16px",
+            cursor: "pointer",
+          }}
+        >
+          OK
+        </button>
+      </div>
     </div>
   );
 };
+
 export default Popup;

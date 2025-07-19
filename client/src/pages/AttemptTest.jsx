@@ -21,6 +21,7 @@ function AttemptTest() {
   const [popup, setPopup] = useState(false);
   const timerRef = useRef(null);
   const [popupMessage, setPopupMessage] = useState("");
+  const [submitLoading, setSubmitLoading] = useState(false);
   useEffect(() => {
     const fetchQuizData = async () => {
       try {
@@ -53,7 +54,6 @@ function AttemptTest() {
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timerRef.current);
   }, [remainingTime]);
   const formatTime = (seconds) => {
@@ -62,6 +62,10 @@ function AttemptTest() {
     return `${mins}:${secs}`;
   };
   const showPopup = (message) => {
+    if (message?.limitExceeded) {
+      handleSubmit();
+      return;
+    }
     setPopupMessage(message);
   };
   const handleOption = (i) => {
@@ -90,10 +94,8 @@ function AttemptTest() {
         questionIndex,
         selectedOptionIndex,
         markForReview,
-
         id: quizId,
       });
-
       const updatedFlags = [...reviewFlags];
       updatedFlags[index] = markForReview;
       setReviewFlags(updatedFlags);
@@ -127,7 +129,7 @@ function AttemptTest() {
   };
 
   const handleSubmit = async () => {
-    setLoading(true);
+    setSubmitLoading(true);
     try {
       const response = await API.post("/test/submit", {
         id: quizId,
@@ -137,7 +139,7 @@ function AttemptTest() {
     } catch (error) {
       console.error("Error during submission:", error);
     } finally {
-      setLoading(false);
+      setSubmitLoading(false);
     }
   };
 
@@ -149,11 +151,13 @@ function AttemptTest() {
 
   return (
     <div className="bg-gradient-to-br from-indigo-500 to-blue-500 min-h-screen flex justify-center items-center relative">
-      <SnapshotCamera
-        userId={JSON.parse(localStorage.getItem("user"))._id}
-        testId={quizId}
-        onSuspiciousActivity={showPopup}
-      />
+      {!popupMessage && (
+        <SnapshotCamera
+          userId={JSON.parse(localStorage.getItem("user"))._id}
+          testId={quizId}
+          onSuspiciousActivity={showPopup}
+        />
+      )}
       <div className="bg-white w-full max-w-4xl p-6 rounded-lg shadow-lg grid grid-cols-4 gap-4">
         <div className="col-span-3">
           <div className="flex justify-between items-center mb-4">
@@ -164,7 +168,6 @@ function AttemptTest() {
               ⏰ {remainingTime !== null ? formatTime(remainingTime) : "--:--"}
             </span>
           </div>
-
           <div className="flex flex-col gap-3 mb-4">
             {quizData[index].options.map((opt, i) => (
               <div
@@ -247,6 +250,12 @@ function AttemptTest() {
       )}
       {popupMessage && (
         <Popup message={popupMessage} onClose={() => setPopupMessage("")} />
+      )}
+      {submitLoading && (
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <div className="w-5 h-5 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-blue-600 font-medium">Submitting Quiz...</span>
+        </div>
       )}
     </div>
   );

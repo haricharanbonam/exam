@@ -41,7 +41,6 @@ const createTest = asyncHandler(async (req, res) => {
   await creator.save();
   res.status(201).json(new ApiResponse("successfully created"));
 });
-
 const testInterface = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const now = new Date(req.time);
@@ -58,16 +57,14 @@ const testInterface = asyncHandler(async (req, res) => {
     person: req.user._id,
     test: testDetails._id,
   });
-  if (checkAlreadyAttempted?.submit) {
-    throw new ApiError(403, "You have already attempted this test");
-  }
+
   const response = {
     ...testDetails.toObject(),
     start: testDetails.startTime <= now,
     end: testDetails.endTime <= now,
     resumeFlag: checkAlreadyAttempted || false,
+    submitted: checkAlreadyAttempted?.submit
   };
-
   res.status(200).json(new ApiResponse(200, response));
 });
 
@@ -233,6 +230,44 @@ const handleSubmit = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse("Test submitted successfully"));
 });
 
+ const getUserProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  const user = await User.findOne({ username : username })
+    .populate({
+      path: "attemptedTests",
+      populate: {
+        path: "test",
+        model: "Test",
+        select: "title",
+      },
+    })
+    .select("-password -refreshToken");
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  const profile = {
+    fullName: user.fullName,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    aboutme: user.aboutme,
+    Profession: user.Profession,
+    avatarUrl: user.avatarUrl,
+    interests: user.interests,
+    createdAt: user.createdAt,
+    attemptedTests: user.attemptedTests.map((attempt) => ({
+      testName: attempt?.test?.title || "Unknown Test",
+      score: attempt.score,
+      date: attempt.completedAt || attempt.startedAt,
+    })),
+  };
+
+  res.status(200).json({ success: true, data: profile });
+});
+
 const getAllTests = asyncHandler(async (req, res) => {
   const tests = await Test.find({});
   if (!tests || tests.length === 0) {
@@ -278,5 +313,6 @@ export {
   handleSubmit,
   getAllTests,
   handleResume,
-  getAllResults
+  getAllResults,
+  getUserProfile
 };

@@ -124,12 +124,19 @@ const ExamInterface = () => {
           >
             Not Started Yet
           </button>
+        ) : test.submitted ? (
+          <button
+            className="w-full py-3 bg-gray-400 text-white font-semibold rounded-lg cursor-not-allowed"
+            disabled
+          >
+            Exam Already Submitted
+          </button>
         ) : (
           <button
             className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg transition-all duration-300"
             onClick={() => navigate(`/test/${id}/start`)}
           >
-            {test?.resumeFlag? `Resume Exam` : `Start Exam`}
+            {test?.resumeFlag ? `Resume Exam` : `Start Exam`}
           </button>
         )}
       </div>
