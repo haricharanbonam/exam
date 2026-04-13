@@ -7,9 +7,18 @@ dotenv.config({
 });
 connectDB()
   .then(() => {
-    app.listen(process.env.PORT || 8000, () => {
-      console.log("server is running");
-    });
+const server = app.listen(3000, () => {
+  console.log("Server running on port 3000");
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error("❌ Port 3000 is already in use!");
+    process.exit(1);
+  } else {
+    console.error(err);
+  }
+});
   })
   .catch(() => {
     console.log("mongodb connection error");

@@ -22,6 +22,8 @@ const userSchema = new mongoose.Schema(
     username: {
       type: String,
       required: true,
+      unique: true, // ✅ Add this
+      lowercase: true, // ✅ Consider adding this for consistency
     },
 
     refreshToken: {

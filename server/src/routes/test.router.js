@@ -10,6 +10,9 @@ import {
   getAllTests,
   handleResume,
   getAllResults,
+  logViolation,
+  getInstructorDashboard,
+  getMyCreatedTests,
 } from "../controllers/test.controller.js";
 const testRouter = Router();
 testRouter.post("/create", verifyJWT, createTest);
@@ -18,6 +21,8 @@ testRouter.post("/start", verifyJWT, handleStart);
 testRouter.post("/resume", verifyJWT, handleResume);
 testRouter.post("/question", verifyJWT, handleQuestion);
 testRouter.post("/submit", verifyJWT, handleSubmit);
-// testRouter.get("/justtest", getAllTests);
+testRouter.post("/violation", verifyJWT, logViolation);
+testRouter.get("/instructor/dashboard/:examCode", verifyJWT, getInstructorDashboard);
+testRouter.get("/instructor/my-tests", verifyJWT, getMyCreatedTests);
 testRouter.get("/results", verifyJWT, getAllResults);
 export default testRouter;

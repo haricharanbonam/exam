@@ -61,13 +61,37 @@ function AttemptTest() {
     const secs = String(seconds % 60).padStart(2, "0");
     return `${mins}:${secs}`;
   };
-  const showPopup = (message) => {
+  const showPopup = async (message) => {
     if (message?.limitExceeded) {
       handleSubmit();
       return;
     }
+    // Log violation to backend
+    try {
+      await API.post("/test/violation", {
+        examCode: quizId,
+        type: message?.suspicious_reason || message || "Suspicious Activity",
+        snapshot: message?.image || null
+      });
+    } catch (err) {
+      console.error("Failed to log violation:", err);
+    }
     setPopupMessage(message);
   };
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        showPopup("Tab switched / Window minimized");
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   const handleOption = (i) => {
     setOption(i);
     const updatedResponses = [...responses];

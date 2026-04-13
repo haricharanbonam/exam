@@ -26,6 +26,17 @@ const createTest = asyncHandler(async (req, res) => {
     throw new Error("Instructor not found.");
   }
 
+  const updatedQuestions = questions.map((q) => {
+    return {
+      ...q,
+      correctAnswerIndex: q.answer - 1,
+    };
+  });
+
+  if (!examCode) {
+    throw new ApiError(400, "Exam code is required.");
+  }
+
   const newTest = await Test.create({
     title,
     description,
@@ -33,7 +44,7 @@ const createTest = asyncHandler(async (req, res) => {
     startTime,
     endTime,
     durationMinutes,
-    questions,
+    questions: updatedQuestions,
     examCode,
     numberOfQuestions: questions.length,
   });
@@ -202,11 +213,6 @@ const handleSubmit = asyncHandler(async (req, res) => {
   let score = 0;
   response.answers.forEach((answer) => {
     const question = test.questions[answer.questionIndex];
-    console.log(
-      `Q${answer.questionIndex + 1}: Selected ${
-        answer.selectedOptionIndex
-      }, Correct ${question?.correctAnswerIndex}`
-    );
 
     if (
       question &&
@@ -305,6 +311,53 @@ const getAllResults = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, results));
 });
 
+const logViolation = asyncHandler(async (req, res) => {
+  const { examCode, type, snapshot } = req.body;
+  const user_id = req.user._id;
+
+  const test = await Test.findOne({ examCode });
+  if (!test) throw new ApiError(404, "Test not found");
+
+  const responseDoc = await Response.findOne({ test: test._id, person: user_id });
+  if (!responseDoc) throw new ApiError(404, "Active exam session not found");
+
+  responseDoc.violations.push({ type, snapshot, timestamp: new Date() });
+  
+  // Simple trust score calculation: deduct 10 points per violation
+  responseDoc.trustScore = Math.max(0, 100 - responseDoc.violations.length * 10);
+  
+  await responseDoc.save();
+
+  res.status(200).json(new ApiResponse(200, { trustScore: responseDoc.trustScore }, "Violation logged"));
+});
+
+const getInstructorDashboard = asyncHandler(async (req, res) => {
+  const { examCode } = req.params;
+  const user_id = req.user._id;
+
+  const test = await Test.findOne({ examCode, creator: user_id });
+  if (!test) throw new ApiError(404, "Test not found or you are not the creator");
+
+  const responses = await Response.find({ test: test._id })
+    .populate("person", "fullName email username avatarUrl")
+    .select("person startedAt completedAt score submit violations trustScore");
+
+  res.status(200).json(new ApiResponse(200, { test, participants: responses }, "Dashboard data retrieved"));
+});
+
+const getMyCreatedTests = asyncHandler(async (req, res) => {
+  const user_id = req.user._id;
+  const tests = await Test.find({ creator: user_id }).select("title examCode durationMinutes startTime endTime");
+  
+  // For each test, get participant count
+  const testsWithStats = await Promise.all(tests.map(async (test) => {
+    const count = await Response.countDocuments({ test: test._id });
+    return { ...test.toObject(), participantCount: count };
+  }));
+
+  res.status(200).json(new ApiResponse(200, testsWithStats, "Created tests retrieved"));
+});
+
 export {
   createTest,
   testInterface,
@@ -314,5 +367,8 @@ export {
   getAllTests,
   handleResume,
   getAllResults,
-  getUserProfile
+  getUserProfile,
+  logViolation,
+  getInstructorDashboard,
+  getMyCreatedTests
 };

@@ -12,6 +12,8 @@ import AttemptTest from "./pages/AttemptTest";
 import { useEffect } from "react";
 import { useState } from "react";
 import Profile from "./pages/Profile";
+import InstructorDashboard from "./pages/InstructorDashboard";
+import TestDetailsView from "./pages/TestDetailsView";
 export default function App() {
   // const [isOnline, setIsOnline] = useState(true);
   // useEffect(() => {
@@ -81,6 +83,22 @@ export default function App() {
           element={
             <PrivateRoute>
               <AttemptTest />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <InstructorDashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/instructor/test/:examCode"
+          element={
+            <PrivateRoute>
+              <TestDetailsView />
             </PrivateRoute>
           }
         />

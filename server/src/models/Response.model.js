@@ -12,6 +12,17 @@ const responseSchema = new Schema({
     },
   ],
   score: Number, 
+  violations: [
+    {
+      type: { type: String },
+      snapshot: { type: String }, // Optional base64 or URL
+      timestamp: { type: Date, default: Date.now },
+    },
+  ],
+  trustScore: {
+    type: Number,
+    default: 100,
+  },
   submit:{
     type: Boolean,
     default: false, 

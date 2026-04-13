@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import API from "../utils/axios";
 import ExamCode from "../components/ExamCode";
@@ -22,6 +22,11 @@ function CreateQuiz() {
     setOptions(updatedOptions);
   };
 
+  useEffect(()=>
+  {
+    console.log(questions);
+  },[questions]);
+
   const handleSaveQuestion = () => {
     if (!question || options.includes("") || answer === "") {
       alert("Please fill all question fields!");
@@ -33,25 +38,23 @@ function CreateQuiz() {
       options,
       answer: parseInt(answer),
     };
-
-    setQuestions([newQuestion, ...questions]);
-    setQuestion("");
-    setOptions(["", "", "", ""]);
-    setAnswer("");
+    console.log("this is new ",newQuestion);
+    // setQuestions([newQuestion, ...questions]);
+    setQuestions(prev=>[...prev,newQuestion]);
+    console.log("this is questions ",questions);
+    // setQuestion("");
+    // setOptions(["", "", "", ""]);
+    // setAnswer("");
+    console.log("this is questions ",questions);
   };
   function generateCode() {
-    const userJson = localStorage.getItem("user");
-    if (!userJson) return null; // If missing, return null to handle gracefully
-
-    const username = JSON.parse(userJson).username || "USER";
-    const unamePart = username.substring(0, 3).toUpperCase(); // 3 letters
-
-    const safeTitle = title || "QT"; // fallback
-    const titlePart = safeTitle.substring(0, 2).toUpperCase(); // 2 letters
-
-    const timestampHash = (Date.now() % 100).toString().padStart(2, "0");
-
-    return `${unamePart}${titlePart}${timestampHash}`;
+    let str = "ABASIWRUEIRGNGUERTNJENFKEKURTYIERUHTERTEIORTOEIRTWEPO2E2348345UERFSKDCMDSNNAKWEJ23473460945YKMTP20348235"  ;
+    let code = "";
+    for(let i=0;i<8;i++)
+    {
+      code+=str[Math.floor(Math.random()*str.length)];
+    }
+    return code;
   }
 
   const handleSubmitQuiz = async () => {
@@ -66,7 +69,10 @@ function CreateQuiz() {
       alert("Please fill all quiz details and add at least one question.");
       return;
     }
-    setCode(generateCode());
+
+    const newCode = generateCode();
+    setCode(newCode);
+
     const quizData = {
       title,
       description,
@@ -74,13 +80,22 @@ function CreateQuiz() {
       endTime,
       durationMinutes,
       questions,
-      examCode: code  || "QT00",
+      examCode: newCode,
     };
+    console.log("this is quiz data", quizData);
 
     try {
       const res = await API.post("/test/create", quizData);
       console.log("Quiz created:", res.data);
       alert("Quiz successfully created!");
+      setShowModal(true);
+      // Optional: Reset form fields here if desired
+      setTitle("");
+      setDescription("");
+      setStartTime("");
+      setEndTime("");
+      setDurationMinutes("");
+      setQuestions([]);
     } catch (err) {
       console.error("Quiz creation failed:", err);
       alert("Something went wrong. Check console for details.");
