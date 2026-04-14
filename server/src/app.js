@@ -10,6 +10,8 @@ import { Test } from "./models/Test.model.js";
 import { Response } from "./models/Response.model.js";
 import bodyParser from "body-parser"
 import dns from "node:dns";
+import githubRouter from "./routes/github.route.js"
+import challengeRouter from "./routes/challenge.route.js"
 
 dns.setServers(['1.1.1.1','8.8.8.8']);
 
@@ -108,5 +110,7 @@ app.use(cookieParser());
 app.use("/user", userRouter);
 
 app.use("/test", testRouter);
+app.use("/github", githubRouter)
+app.use("/courses", challengeRouter)
 
 export { app };
