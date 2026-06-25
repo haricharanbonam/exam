@@ -38,8 +38,8 @@ const SignupForm = () => {
 
       // Success response
       if (res.status === 201) {
-        setMessage("Registration successful!");
-        navigate("/email-sent", { state: { email: formData.email } });
+        setMessage("Registration successful! Please log in.");
+        navigate("/login");
       }
     } catch (err) {
       // Check if it's a known error from backend

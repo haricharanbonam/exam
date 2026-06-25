@@ -37,20 +37,28 @@ const createTest = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Exam code is required.");
   }
 
-  const newTest = await Test.create({
-    title,
-    description,
-    creator: creator._id,
-    startTime,
-    endTime,
-    durationMinutes,
-    questions: updatedQuestions,
-    examCode,
-    numberOfQuestions: questions.length,
-  });
+  let newTest;
+  try {
+    newTest = await Test.create({
+      title,
+      description,
+      creator: creator._id,
+      startTime,
+      endTime,
+      durationMinutes,
+      questions: updatedQuestions,
+      examCode,
+      numberOfQuestions: questions.length,
+    });
+  } catch (err) {
+    if (err && err.code === 11000) {
+      throw new ApiError(409, "Exam code already taken");
+    }
+    throw err;
+  }
   creator.createdTests.push(newTest._id);
   await creator.save();
-  res.status(201).json(new ApiResponse("successfully created"));
+  res.status(201).json(new ApiResponse(201, newTest, "Test created successfully"));
 });
 const testInterface = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -73,7 +81,7 @@ const testInterface = asyncHandler(async (req, res) => {
     ...testDetails.toObject(),
     start: testDetails.startTime <= now,
     end: testDetails.endTime <= now,
-    resumeFlag: checkAlreadyAttempted || false,
+    resumeFlag: !!checkAlreadyAttempted || false,
     submitted: checkAlreadyAttempted?.submit
   };
   res.status(200).json(new ApiResponse(200, response));
@@ -233,7 +241,7 @@ const handleSubmit = asyncHandler(async (req, res) => {
     $addToSet: { attemptedTests: response._id },
   });
 
-  res.status(200).json(new ApiResponse("Test submitted successfully"));
+  res.status(200).json(new ApiResponse(200, { score, completedAt: req.time }, "Test submitted successfully"));
 });
 
  const getUserProfile = asyncHandler(async (req, res) => {

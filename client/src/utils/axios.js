@@ -27,9 +27,8 @@ API.interceptors.response.use(
       try {
         const res = await axios.post(
           "http://localhost:3000/user/refresh-token",
-          {
-            withCredentials: true,
-          }
+          {},
+          { withCredentials: true }
         );
 
         const newAccessToken = res.data.accessToken;

@@ -52,7 +52,7 @@ function SnapshotCamera({ userId, testId, onSuspiciousActivity }) {
             response.data.suspicious === true &&
             onSuspiciousActivity
           ) {
-            onSuspiciousActivity(response.data);
+            onSuspiciousActivity({ ...response.data, image: imageSrc });
           }
         } catch (error) {
           console.error("Snapshot logging failed:", error);

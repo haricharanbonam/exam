@@ -159,7 +159,8 @@ function AttemptTest() {
         id: quizId,
       });
       console.log("Submitted:", response.data.data);
-      nav("/success");
+      const submittedScore = response.data?.data?.score;
+      nav("/success", { state: { score: submittedScore } });
     } catch (error) {
       console.error("Error during submission:", error);
     } finally {

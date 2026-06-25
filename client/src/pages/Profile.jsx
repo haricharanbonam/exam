@@ -123,7 +123,7 @@ const Profile = () => {
                     </p>
                   </div>
                   <div className="text-blue-600 font-bold text-lg">
-                    {test.score}%
+                    {test.score}
                   </div>
                 </li>
               ))}

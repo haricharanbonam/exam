@@ -9,7 +9,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await API.get("/logout", { withCredentials: true });
+      await API.post("/user/logout", {});
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {

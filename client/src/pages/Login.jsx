@@ -54,11 +54,11 @@ function Login() {
                 <div className="relative flex items-center">
                   <input
                     onChange={(e) => setEmail(e.target.value)}
-                    name="username"
+                    name="email"
                     type="text"
                     required
                     className="w-full text-sm text-slate-900 border border-slate-300 pl-4 pr-10 py-3 rounded-lg outline-blue-600"
-                    placeholder="Enter user name"
+                    placeholder="Enter email"
                   />
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

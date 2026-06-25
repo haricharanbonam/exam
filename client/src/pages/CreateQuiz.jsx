@@ -70,36 +70,40 @@ function CreateQuiz() {
       return;
     }
 
-    const newCode = generateCode();
-    setCode(newCode);
-
-    const quizData = {
-      title,
-      description,
-      startTime,
-      endTime,
-      durationMinutes,
-      questions,
-      examCode: newCode,
+    const tryCreate = async (attempt) => {
+      const newCode = generateCode();
+      setCode(newCode);
+      const quizData = {
+        title,
+        description,
+        startTime,
+        endTime,
+        durationMinutes,
+        questions,
+        examCode: newCode,
+      };
+      try {
+        const res = await API.post("/test/create", quizData);
+        console.log("Quiz created:", res.data);
+        alert("Quiz successfully created!");
+        setShowModal(true);
+        setTitle("");
+        setDescription("");
+        setStartTime("");
+        setEndTime("");
+        setDurationMinutes("");
+        setQuestions([]);
+        return true;
+      } catch (err) {
+        console.error(`Quiz creation attempt ${attempt} failed:`, err);
+        if (err.response?.status === 409 && attempt < 3) {
+          return tryCreate(attempt + 1);
+        }
+        alert("Something went wrong. Check console for details.");
+        return false;
+      }
     };
-    console.log("this is quiz data", quizData);
-
-    try {
-      const res = await API.post("/test/create", quizData);
-      console.log("Quiz created:", res.data);
-      alert("Quiz successfully created!");
-      setShowModal(true);
-      // Optional: Reset form fields here if desired
-      setTitle("");
-      setDescription("");
-      setStartTime("");
-      setEndTime("");
-      setDurationMinutes("");
-      setQuestions([]);
-    } catch (err) {
-      console.error("Quiz creation failed:", err);
-      alert("Something went wrong. Check console for details.");
-    }
+    await tryCreate(1);
   };
 
   return (
