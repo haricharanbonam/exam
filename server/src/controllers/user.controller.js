@@ -357,11 +357,28 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 
 
+const updateUserProfile = asyncHandler(async (req, res) => {
+  const { fullName, aboutme, Profession, avatarUrl, interests } = req.body;
+  const update = {};
+  if (typeof fullName === "string" && fullName.trim()) update.fullName = fullName.trim();
+  if (typeof aboutme === "string") update.aboutme = aboutme;
+  if (typeof Profession === "string") update.Profession = Profession;
+  if (typeof avatarUrl === "string") update.avatarUrl = avatarUrl;
+  if (Array.isArray(interests)) update.interests = interests.filter(i => typeof i === "string");
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    { $set: update },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res.status(200).json(new ApiResponse(200, updatedUser, "Profile updated"));
+});
+
 export {
   registerUser,
   loginUser,
   logoutUser,
   refreshAccessToken,
-
-
+  updateUserProfile,
 };

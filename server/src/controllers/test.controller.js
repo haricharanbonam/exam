@@ -330,13 +330,17 @@ const logViolation = asyncHandler(async (req, res) => {
   if (!responseDoc) throw new ApiError(404, "Active exam session not found");
 
   responseDoc.violations.push({ type, snapshot, timestamp: new Date() });
-  
-  // Simple trust score calculation: deduct 10 points per violation
   responseDoc.trustScore = Math.max(0, 100 - responseDoc.violations.length * 10);
-  
   await responseDoc.save();
 
-  res.status(200).json(new ApiResponse(200, { trustScore: responseDoc.trustScore }, "Violation logged"));
+  const cheatCount = responseDoc.violations.length;
+  const limitExceeded = cheatCount >= 5;
+  responseDoc.trustScore = Math.max(0, 100 - cheatCount * 10);
+  await responseDoc.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, { trustScore: responseDoc.trustScore, cheatCount, limitExceeded }, "Violation logged")
+  );
 });
 
 const getInstructorDashboard = asyncHandler(async (req, res) => {

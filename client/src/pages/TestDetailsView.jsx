@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import API from "../utils/axios";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Modal from "../components/Modal";
 
 const TestDetailsView = () => {
   const { examCode } = useParams();
@@ -139,8 +140,7 @@ const TestDetailsView = () => {
 
         {/* Audit Modal/Overlay */}
         {selectedCandidate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+          <Modal onClose={() => setSelectedCandidate(null)} className="bg-white rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-8 shadow-2xl animate-in zoom-in-95 duration-200">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-2xl font-black text-gray-900">Violation Audit</h2>
@@ -175,8 +175,7 @@ const TestDetailsView = () => {
                   ))}
                 </div>
               )}
-            </div>
-          </div>
+    </Modal>
         )}
       </div>
     </div>

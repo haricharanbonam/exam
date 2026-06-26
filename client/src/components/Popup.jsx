@@ -18,24 +18,11 @@
 
 // export default Popup;
 import React from "react";
+import Modal from "./Modal";
 const Popup = ({ message, onClose }) => {
   const cheatCount = message?.cheatCount;
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        height: "100vh",
-        width: "100vw",
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        backdropFilter: "blur(3px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-      }}
-    >
+    <Modal onClose={onClose}>
       <div
         style={{
           backgroundColor: "#fff",
@@ -83,7 +70,7 @@ const Popup = ({ message, onClose }) => {
           OK
         </button>
       </div>
-    </div>
+    </Modal>
   );
 };
 

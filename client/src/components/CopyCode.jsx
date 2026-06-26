@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Modal from "./Modal";
 
 const TextShareModal = ({ link, onClose }) => {
   const [copied, setCopied] = useState(false);
@@ -10,8 +11,7 @@ const TextShareModal = ({ link, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center border border-zinc-300 dark:border-zinc-700">
+    <Modal onClose={onClose} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center border border-zinc-300 dark:border-zinc-700">
         <h2 className="text-xl font-semibold mb-4 text-zinc-800 dark:text-zinc-100">
           📌 Code is available at:
         </h2>
@@ -72,8 +72,7 @@ const TextShareModal = ({ link, onClose }) => {
         >
           OK
         </button>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

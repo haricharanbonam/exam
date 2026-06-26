@@ -22,6 +22,8 @@ function AttemptTest() {
   const timerRef = useRef(null);
   const [popupMessage, setPopupMessage] = useState("");
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [cheatCount, setCheatCount] = useState(0);
+  const MAX_FLAGS = 5;
   useEffect(() => {
     const fetchQuizData = async () => {
       try {
@@ -63,16 +65,20 @@ function AttemptTest() {
   };
   const showPopup = async (message) => {
     if (message?.limitExceeded) {
+      setCheatCount(MAX_FLAGS);
       handleSubmit();
       return;
     }
     // Log violation to backend
     try {
-      await API.post("/test/violation", {
+      const res = await API.post("/test/violation", {
         examCode: quizId,
         type: message?.suspicious_reason || message || "Suspicious Activity",
         snapshot: message?.image || null
       });
+      if (res?.data?.data?.cheatCount !== undefined) {
+        setCheatCount(res.data.data.cheatCount);
+      }
     } catch (err) {
       console.error("Failed to log violation:", err);
     }
@@ -189,9 +195,18 @@ function AttemptTest() {
             <p className="text-xl font-bold text-gray-800">
               Q{index + 1}: {quizData[index].questionText}
             </p>
-            <span className="text-lg font-mono text-red-600">
-              ⏰ {remainingTime !== null ? formatTime(remainingTime) : "--:--"}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-mono text-red-600">
+                ⏰ {remainingTime !== null ? formatTime(remainingTime) : "--:--"}
+              </span>
+              <span
+                className={`text-sm font-bold px-3 py-1 rounded-full ${
+                  cheatCount >= 3 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                }`}
+              >
+                🚩 {cheatCount} / {MAX_FLAGS}
+              </span>
+            </div>
           </div>
           <div className="flex flex-col gap-3 mb-4">
             {quizData[index].options.map((opt, i) => (

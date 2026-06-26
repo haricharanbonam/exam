@@ -1,9 +1,9 @@
 import React from "react";
+import Modal from "./Modal";
 
 const SubmitPopup = ({ onConfirm, onCancel }) => {
   return (
-    <div className="popup-overlay fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-      <div className="popup-box bg-white w-80 p-4 rounded-lg shadow-lg text-center">
+    <Modal onClose={onCancel} className="popup-box bg-white w-80 p-4 rounded-lg shadow-lg text-center">
         <p className="text-lg font-bold mb-4">Do you want to submit?</p>
         <div className="buttons flex justify-around">
           <span
@@ -19,8 +19,7 @@ const SubmitPopup = ({ onConfirm, onCancel }) => {
             No
           </span>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 
