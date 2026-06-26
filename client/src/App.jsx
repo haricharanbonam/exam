@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import SignupForm from "./pages/SignUp";
 import PrivateRoute from "./components/Auth";
 import React from "react";
+import { Toaster } from "react-hot-toast";
 import Home from "./pages/Home";
 import CreateQuiz from "./pages/CreateQuiz";
 import ExamInterface from "./pages/ExamInterface";
@@ -31,6 +32,7 @@ export default function App() {
 
   return (
     <>
+      <Toaster position="top-right" />
       {/* {isOnline ? (
         <WiFiIcon className="text-green-500" />
       ) : (

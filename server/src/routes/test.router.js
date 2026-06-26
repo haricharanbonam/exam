@@ -13,9 +13,11 @@ import {
   logViolation,
   getInstructorDashboard,
   getMyCreatedTests,
+  generateQuestions,
 } from "../controllers/test.controller.js";
 const testRouter = Router();
 testRouter.post("/create", verifyJWT, createTest);
+testRouter.post("/generate-questions", verifyJWT, generateQuestions);
 testRouter.get("/interface/:id", verifyJWT, testInterface);
 testRouter.post("/start", verifyJWT, handleStart);
 testRouter.post("/resume", verifyJWT, handleResume);

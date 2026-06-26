@@ -5,6 +5,10 @@ import { User } from "../models/User.model.js";
 import { Response } from "../models/Response.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { aiService } from "../services/ai.service.js";
+
+const VALID_DIFFICULTIES = new Set(["easy", "medium", "hard"]);
+const VALID_TYPES = new Set(["mcq", "truefalse"]);
 
 const createTest = asyncHandler(async (req, res) => {
   const {
@@ -370,6 +374,52 @@ const getMyCreatedTests = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, testsWithStats, "Created tests retrieved"));
 });
 
+const generateQuestions = asyncHandler(async (req, res) => {
+  const body = req.body || {};
+  const concept = typeof body.concept === "string" ? body.concept.trim() : "";
+  const count = body.count;
+  const difficulty =
+    typeof body.difficulty === "string" && body.difficulty.length > 0
+      ? body.difficulty
+      : "medium";
+  const type =
+    typeof body.type === "string" && body.type.length > 0 ? body.type : "mcq";
+
+  if (concept.length < 3 || concept.length > 200) {
+    throw new ApiError(400, "concept must be a string between 3 and 200 characters");
+  }
+
+  if (
+    typeof count !== "number" ||
+    !Number.isInteger(count) ||
+    count < 1 ||
+    count > 20
+  ) {
+    throw new ApiError(400, "count must be an integer between 1 and 20");
+  }
+
+  if (!VALID_DIFFICULTIES.has(difficulty)) {
+    throw new ApiError(400, "difficulty must be one of: easy, medium, hard");
+  }
+
+  if (!VALID_TYPES.has(type)) {
+    throw new ApiError(400, "type must be one of: mcq, truefalse");
+  }
+
+  const questions = await aiService.generateQuestions({
+    concept,
+    count,
+    difficulty,
+    type,
+  });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { questions }, "Questions generated successfully")
+    );
+});
+
 export {
   createTest,
   testInterface,
@@ -382,5 +432,6 @@ export {
   getUserProfile,
   logViolation,
   getInstructorDashboard,
-  getMyCreatedTests
+  getMyCreatedTests,
+  generateQuestions,
 };
