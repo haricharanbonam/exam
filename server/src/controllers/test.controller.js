@@ -1,8 +1,10 @@
+import mongoose from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 import { Test } from "../models/Test.model.js";
 import { User } from "../models/User.model.js";
 import { Response } from "../models/Response.model.js";
+import { Feedback } from "../models/Feedback.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { aiService } from "../services/ai.service.js";
@@ -324,8 +326,11 @@ const getAllResults = asyncHandler(async (req, res) => {
 });
 
 const logViolation = asyncHandler(async (req, res) => {
-  const { examCode, type, snapshot } = req.body;
+  const { examCode, type, snapshot, severity = "violation", metadata } = req.body;
   const user_id = req.user._id;
+
+  const normalizedSeverity =
+    severity === "warning" ? "warning" : "violation";
 
   const test = await Test.findOne({ examCode });
   if (!test) throw new ApiError(404, "Test not found");
@@ -333,17 +338,42 @@ const logViolation = asyncHandler(async (req, res) => {
   const responseDoc = await Response.findOne({ test: test._id, person: user_id });
   if (!responseDoc) throw new ApiError(404, "Active exam session not found");
 
-  responseDoc.violations.push({ type, snapshot, timestamp: new Date() });
-  responseDoc.trustScore = Math.max(0, 100 - responseDoc.violations.length * 10);
+  const violation = {
+    type,
+    severity: normalizedSeverity,
+    snapshot: snapshot || undefined,
+    metadata: metadata || undefined,
+    timestamp: new Date(),
+  };
+  responseDoc.violations.push(violation);
+
+  // Only hard violations affect trust score and cheat counter.
+  if (normalizedSeverity === "violation") {
+    const hardCount = responseDoc.violations.filter(
+      (v) => (v.severity || "violation") === "violation"
+    ).length;
+    responseDoc.trustScore = Math.max(0, 100 - hardCount * 10);
+  }
+
   await responseDoc.save();
 
-  const cheatCount = responseDoc.violations.length;
-  const limitExceeded = cheatCount >= 5;
-  responseDoc.trustScore = Math.max(0, 100 - cheatCount * 10);
-  await responseDoc.save();
+  const hardCount = responseDoc.violations.filter(
+    (v) => (v.severity || "violation") === "violation"
+  ).length;
+  const cheatCount = hardCount;
+  const limitExceeded = hardCount >= 5;
 
   return res.status(200).json(
-    new ApiResponse(200, { trustScore: responseDoc.trustScore, cheatCount, limitExceeded }, "Violation logged")
+    new ApiResponse(
+      200,
+      {
+        trustScore: responseDoc.trustScore,
+        cheatCount,
+        limitExceeded,
+        violation: responseDoc.violations[responseDoc.violations.length - 1],
+      },
+      "Violation logged"
+    )
   );
 });
 
@@ -420,6 +450,51 @@ const generateQuestions = asyncHandler(async (req, res) => {
     );
 });
 
+const submitFeedback = asyncHandler(async (req, res) => {
+  const { attemptId, rating, description } = req.body;
+  const user_id = req.user._id;
+
+  if (!attemptId || !mongoose.Types.ObjectId.isValid(attemptId)) {
+    throw new ApiError(400, "Valid attemptId is required");
+  }
+  if (typeof rating !== "number" || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw new ApiError(400, "rating must be an integer between 1 and 5");
+  }
+  if (description && (typeof description !== "string" || description.length > 1000)) {
+    throw new ApiError(400, "description must be a string up to 1000 characters");
+  }
+
+  const responseDoc = await Response.findById(attemptId);
+  if (!responseDoc) throw new ApiError(404, "Attempt not found");
+
+  // Ownership check — the attempt must belong to this user
+  if (String(responseDoc.person) !== String(user_id)) {
+    throw new ApiError(403, "Not authorized to submit feedback for this attempt");
+  }
+
+  const test = await Test.findById(responseDoc.test).select("_id title");
+
+  let feedback;
+  try {
+    feedback = await Feedback.create({
+      attempt: responseDoc._id,
+      test: test._id,
+      user: user_id,
+      rating,
+      description: description || "",
+    });
+  } catch (err) {
+    if (err && err.code === 11000) {
+      throw new ApiError(409, "Feedback already submitted for this attempt");
+    }
+    throw err;
+  }
+
+  return res.status(201).json(
+    new ApiResponse(201, { feedbackId: feedback._id }, "Feedback submitted successfully")
+  );
+});
+
 export {
   createTest,
   testInterface,
@@ -434,4 +509,5 @@ export {
   getInstructorDashboard,
   getMyCreatedTests,
   generateQuestions,
+  submitFeedback,
 };

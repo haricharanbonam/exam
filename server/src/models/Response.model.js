@@ -15,7 +15,13 @@ const responseSchema = new Schema({
   violations: [
     {
       type: { type: String },
+      severity: {
+        type: String,
+        enum: ["warning", "violation"],
+        default: "violation",
+      },
       snapshot: { type: String }, // Optional base64 or URL
+      metadata: { type: Schema.Types.Mixed },
       timestamp: { type: Date, default: Date.now },
     },
   ],

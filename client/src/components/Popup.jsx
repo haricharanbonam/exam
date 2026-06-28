@@ -21,6 +21,7 @@ import React from "react";
 import Modal from "./Modal";
 const Popup = ({ message, onClose }) => {
   const cheatCount = message?.cheatCount;
+  const snapshot = message?.snapshot || message?.image;
   return (
     <Modal onClose={onClose}>
       <div
@@ -37,6 +38,18 @@ const Popup = ({ message, onClose }) => {
         <h2 style={{ marginBottom: "16px", color: "#d32f2f" }}>
           ⚠️ Cheating Detected
         </h2>
+        {snapshot && typeof snapshot === "string" && snapshot.startsWith("data:image") && (
+          <img
+            src={snapshot}
+            alt="Snapshot"
+            style={{
+              width: "100%",
+              borderRadius: "8px",
+              marginBottom: "12px",
+              border: "1px solid #e2e8f0",
+            }}
+          />
+        )}
         {cheatCount ? (
           <>
             <p style={{ fontSize: "16px", marginBottom: "12px" }}>
