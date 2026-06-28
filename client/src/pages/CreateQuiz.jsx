@@ -1,23 +1,28 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Plus,
-  Sparkles,
   FileText,
   Clock,
-  Calendar,
   ListChecks,
   AlertCircle,
   CheckCircle2,
+  Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { DatePicker } from "antd";
+import dayjs from "dayjs";
 import API from "../utils/axios";
 import TextShareModal from "../components/CopyCode";
+import AIPanel from "../components/CreateQuiz/AIPanel";
 import QuestionEditor from "../components/CreateQuiz/QuestionEditor";
 import QuestionCard from "../components/CreateQuiz/QuestionCard";
+import PreviewModal from "../components/CreateQuiz/PreviewModal";
 
 const TITLE_MAX = 100;
+const DRAFT_STORAGE_KEY = "exam.draft.createQuiz";
+const AUTOSAVE_DEBOUNCE_MS = 800;
 
 function generateExamCode() {
   const chars =
@@ -47,6 +52,15 @@ function CreateQuiz() {
   // Submit / modal state
   const [submitting, setSubmitting] = useState(false);
   const [examCode, setExamCode] = useState(null);
+
+  // Preview state
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Autosave state
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
+  const mountedRef = useRef(false);
+  const autosaveTimeoutRef = useRef(null);
 
   // ---- Validation -----------------------------------------------------
   const trimmedTitle = title.trim();
@@ -110,6 +124,24 @@ function CreateQuiz() {
     });
   };
 
+  const handleAddGenerated = (generatedQuestions) => {
+    if (!Array.isArray(generatedQuestions) || generatedQuestions.length === 0) {
+      return;
+    }
+    setQuestions((prev) => [
+      ...prev,
+      ...generatedQuestions.map((q) => ({
+        questionText: q.questionText,
+        options: q.options,
+        correctAnswerIndex: q.correctAnswerIndex,
+        type: q.type,
+      })),
+    ]);
+    setShowAddForm(false);
+    setEditingIndex(null);
+    toast.success(`Added ${generatedQuestions.length} questions`);
+  };
+
   // ---- Submit ---------------------------------------------------------
   const resetForm = () => {
     setTitle("");
@@ -120,6 +152,15 @@ function CreateQuiz() {
     setQuestions([]);
     setEditingIndex(null);
     setShowAddForm(false);
+  };
+
+  const clearSavedDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch {
+      // localStorage may be unavailable (private mode, etc.) — ignore.
+    }
+    setLastSavedAt(null);
   };
 
   const handleSubmit = async () => {
@@ -149,6 +190,7 @@ function CreateQuiz() {
         await API.post("/test/create", payload);
         setExamCode(newCode);
         toast.success("Test created successfully!");
+        clearSavedDraft();
         resetForm();
         return true;
       } catch (err) {
@@ -169,6 +211,153 @@ function CreateQuiz() {
     setSubmitting(false);
   };
 
+  // ---- Draft helpers --------------------------------------------------
+  const parseDraft = (raw) => {
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      if (typeof parsed.title !== "string") return null;
+      if (!Array.isArray(parsed.questions)) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const applyDraft = (d) => {
+    setTitle(d.title);
+    setDescription(typeof d.description === "string" ? d.description : "");
+    setStartTime(typeof d.startTime === "string" ? d.startTime : "");
+    setEndTime(typeof d.endTime === "string" ? d.endTime : "");
+    const dur = Number(d.durationMinutes);
+    setDurationMinutes(Number.isFinite(dur) && dur >= 0 ? dur : 30);
+    setQuestions(d.questions);
+    setEditingIndex(null);
+    setShowAddForm(false);
+  };
+
+  const handleSaveDraft = () => {
+    if (submitting) return;
+    try {
+      const payload = {
+        title,
+        description,
+        startTime,
+        endTime,
+        durationMinutes: durationMinutes === "" ? "" : Number(durationMinutes),
+        questions,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload));
+      setLastSavedAt(payload.savedAt);
+      toast.success("Draft saved");
+    } catch {
+      toast.error("Could not save draft. Storage may be full or unavailable.");
+    }
+  };
+
+  // ---- Effects --------------------------------------------------------
+  // Restore-on-mount: if a valid draft exists, show a non-blocking toast
+  // offering [Restore] / [Start fresh].
+  useEffect(() => {
+    let stored;
+    try {
+      stored = localStorage.getItem(DRAFT_STORAGE_KEY);
+    } catch {
+      return;
+    }
+    const parsed = parseDraft(stored);
+    if (!parsed) {
+      // Malformed / invalid — silently discard.
+      try {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+    toast(
+      (t) => (
+        <div className="flex items-center gap-3">
+          <span>Draft found from your last visit.</span>
+          <button
+            type="button"
+            className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700"
+            onClick={() => {
+              applyDraft(parsed);
+              toast.dismiss(t.id);
+            }}
+          >
+            Restore
+          </button>
+          <button
+            type="button"
+            className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+            onClick={() => {
+              clearSavedDraft();
+              toast.dismiss(t.id);
+            }}
+          >
+            Start fresh
+          </button>
+        </div>
+      ),
+      { duration: Infinity, position: "top-right" }
+    );
+  }, []);
+
+  // Tick `now` every second so the relative-time indicator stays fresh.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Debounced autosave: write to localStorage 800ms after the last change.
+  // Skips the first render via mountedRef so an empty form isn't persisted.
+  useEffect(() => {
+    if (submitting) return;
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    if (autosaveTimeoutRef.current) {
+      clearTimeout(autosaveTimeoutRef.current);
+    }
+    autosaveTimeoutRef.current = setTimeout(() => {
+      try {
+        const payload = {
+          title,
+          description,
+          startTime,
+          endTime,
+          durationMinutes:
+            durationMinutes === "" ? "" : Number(durationMinutes),
+          questions,
+          savedAt: Date.now(),
+        };
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload));
+        setLastSavedAt(payload.savedAt);
+      } catch {
+        // localStorage may be unavailable — skip silently.
+      }
+    }, AUTOSAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (autosaveTimeoutRef.current) {
+        clearTimeout(autosaveTimeoutRef.current);
+      }
+    };
+  }, [
+    title,
+    description,
+    startTime,
+    endTime,
+    durationMinutes,
+    questions,
+    submitting,
+  ]);
+
   // ---- Render ---------------------------------------------------------
   return (
     <div className="min-h-screen bg-slate-50">
@@ -188,12 +377,28 @@ function CreateQuiz() {
               Create New Test
             </h1>
           </div>
-          {/* Autosave indicator placeholder — chunk 4 */}
-          <div className="text-xs text-slate-400" />
+          {/* Autosave indicator */}
+          {lastSavedAt ? (() => {
+            const elapsedSec = Math.floor((now - lastSavedAt) / 1000);
+            const label =
+              elapsedSec < 5
+                ? "just now"
+                : elapsedSec < 60
+                ? `${elapsedSec}s ago`
+                : new Date(lastSavedAt).toLocaleTimeString();
+            return (
+              <span className="text-xs text-slate-400 inline-flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                Draft saved {label}
+              </span>
+            );
+          })() : (
+            <span className="text-xs text-slate-400" />
+          )}
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 space-y-6">
         <p className="text-sm text-slate-500">
           Build an exam in minutes. Add questions manually, or use AI to
           generate them from any concept.
@@ -249,26 +454,30 @@ function CreateQuiz() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
                   Start time
                 </label>
-                <input
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="block w-full rounded-xl border-0 px-3.5 py-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm"
+                <DatePicker
+                  showTime={{ minuteStep: 15, format: "HH:mm", defaultValue: dayjs().startOf("hour") }}
+                  format="YYYY-MM-DD HH:mm"
+                  value={startTime ? dayjs(startTime) : null}
+                  onChange={(v) => setStartTime(v ? v.format("YYYY-MM-DDTHH:mm") : "")}
+                  placeholder="Select start date & time"
+                  className="w-full"
+                  allowClear
                 />
               </div>
               <div>
                 <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
                   End time
                 </label>
-                <input
-                  type="datetime-local"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="block w-full rounded-xl border-0 px-3.5 py-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm"
+                <DatePicker
+                  showTime={{ minuteStep: 15, format: "HH:mm", defaultValue: dayjs().startOf("hour") }}
+                  format="YYYY-MM-DD HH:mm"
+                  value={endTime ? dayjs(endTime) : null}
+                  onChange={(v) => setEndTime(v ? v.format("YYYY-MM-DDTHH:mm") : "")}
+                  placeholder="Select end date & time"
+                  className="w-full"
+                  allowClear
                 />
               </div>
               <div>
@@ -288,32 +497,8 @@ function CreateQuiz() {
           </div>
         </section>
 
-        {/* Section 2 — AI Assistant placeholder */}
-        {/* AI panel slot — chunk 3 will plug in here */}
-        <section className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-8">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Generate questions with AI
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Give a concept and we&apos;ll draft multiple-choice or true/false
-                questions for you. You can review and edit before adding.
-              </p>
-              <button
-                type="button"
-                disabled
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-300 opacity-60 cursor-not-allowed"
-              >
-                <Sparkles className="h-4 w-4" />
-                Generate with AI (coming soon)
-              </button>
-            </div>
-          </div>
-        </section>
+        {/* Section 2 — AI Assistant */}
+        <AIPanel onAddQuestions={handleAddGenerated} />
 
         {/* Section 3 — Questions */}
         <section className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-8">
@@ -391,8 +576,12 @@ function CreateQuiz() {
           )}
         </section>
 
-        {/* Submit row */}
-        <section className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-8">
+        {/* Submit row lives OUTSIDE <main> in the sticky bottom bar below. */}
+      </main>
+
+      {/* Sticky bottom action bar */}
+      <div className="sticky bottom-0 z-30 bg-white/90 backdrop-blur border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           {!canSubmit && (
             <div className="mb-4 flex items-start gap-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 p-3 text-sm text-amber-800">
               <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
@@ -411,17 +600,16 @@ function CreateQuiz() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
             <button
               type="button"
-              disabled
-              onClick={() => console.log("Preview coming in chunk 4")}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-300 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => setShowPreview(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-300 hover:bg-slate-50 transition"
             >
+              <Eye className="h-4 w-4" />
               Preview as Student
             </button>
             <button
               type="button"
-              disabled
-              onClick={() => console.log("Save Draft coming in chunk 4")}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-300 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleSaveDraft}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-300 hover:bg-slate-50 transition"
             >
               Save Draft
             </button>
@@ -435,12 +623,28 @@ function CreateQuiz() {
               {submitting ? "Creating..." : "Create Test"}
             </button>
           </div>
-        </section>
-      </main>
+        </div>
+      </div>
 
       {examCode && (
         <TextShareModal link={examCode} onClose={() => setExamCode(null)} />
       )}
+
+      <PreviewModal
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        test={{
+          title: trimmedTitle || "(untitled test)",
+          description,
+          startTime,
+          endTime,
+          durationMinutes:
+            durationMinutes === "" || durationMinutes == null
+              ? undefined
+              : Number(durationMinutes),
+          questions,
+        }}
+      />
     </div>
   );
 }

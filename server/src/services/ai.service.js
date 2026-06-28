@@ -1,3 +1,9 @@
+// AI question-generation service.
+// Uses OpenRouter (https://openrouter.ai) — an OpenAI-compatible chat completions
+// gateway — so the same JSON request shape works for any supported model.
+// Set OPENROUTER_API_KEY (and optionally OPENROUTER_MODEL) to enable live calls.
+// Set AI_USE_MOCK=true to force the mock generator regardless of keys.
+
 import { ApiError } from "../utils/ApiError.js";
 
 const VALID_TYPES = new Set(["mcq", "truefalse"]);
@@ -5,8 +11,8 @@ const VALID_DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 
 const useMock =
   process.env.AI_USE_MOCK === "true" ||
-  !process.env.OPENAI_API_KEY ||
-  process.env.OPENAI_API_KEY.trim() === "";
+  !process.env.OPENROUTER_API_KEY ||
+  process.env.OPENROUTER_API_KEY.trim() === "";
 
 function _generateMock({ concept, count, difficulty, type }) {
   const questions = [];
@@ -30,9 +36,12 @@ function _generateMock({ concept, count, difficulty, type }) {
   return questions;
 }
 
-async function _generateOpenAI({ concept, count, difficulty, type }) {
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-  const apiKey = process.env.OPENAI_API_KEY;
+async function _generateOpenRouter({ concept, count, difficulty, type }) {
+  // Default model: NVIDIA Nemotron 3 Ultra (free). Llama 3.1 8B free was
+  // deprecated by OpenRouter — see https://openrouter.ai/api/v1/models for current lineup.
+  const model =
+    process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free";
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
   const optionCount = type === "truefalse" ? 2 : 4;
   const optionsHint =
@@ -71,11 +80,14 @@ Return exactly ${count} questions. Do not include any text outside the JSON obje
 
   let response;
   try {
-    response = await fetch("https://api.openai.com/v1/chat/completions", {
+    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
+        // OpenRouter-recommended identification headers (always present, env-overridable).
+        "HTTP-Referer": process.env.OPENROUTER_REFERER || "https://examy.local",
+        "X-Title": process.env.OPENROUTER_APP_TITLE || "ExamY",
       },
       body: JSON.stringify({
         model,
@@ -91,8 +103,8 @@ Return exactly ${count} questions. Do not include any text outside the JSON obje
     clearTimeout(timeout);
     const reason =
       err && err.name === "AbortError"
-        ? "OpenAI request timed out after 30s"
-        : `OpenAI request failed: ${err && err.message ? err.message : "network error"}`;
+        ? "OpenRouter request timed out after 30s"
+        : `OpenRouter request failed: ${err && err.message ? err.message : "network error"}`;
     throw new ApiError(502, reason);
   }
   clearTimeout(timeout);
@@ -185,15 +197,15 @@ async function generateQuestions({
   if (useMock) {
     return _generateMock({ concept, count, difficulty, type });
   }
-  return _generateOpenAI({ concept, count, difficulty, type });
+  return _generateOpenRouter({ concept, count, difficulty, type });
 }
 
 const aiService = {
   generateQuestions,
   _generateMock,
-  _generateOpenAI,
+  _generateOpenRouter,
   get mode() {
-    return useMock ? "mock" : "openai";
+    return useMock ? "mock" : "openrouter";
   },
 };
 
