@@ -566,6 +566,15 @@ function AttemptTest() {
             handleSubmit();
           }}
           onCancel={() => setSubmitPopup(false)}
+          answeredCount={safeResponses.filter((r) => r !== null && r !== undefined).length}
+          totalCount={quizData.length}
+          flaggedCount={safeFlags.filter(Boolean).length}
+          notVisitedCount={quizData.length - safeVisited.filter(Boolean).length}
+          timeRemainingLabel={
+            remainingTime === null
+              ? null
+              : `${Math.floor(remainingTime / 60)}:${String(remainingTime % 60).padStart(2, "0")}`
+          }
         />
       )}
       {popupMessage && (
