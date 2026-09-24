@@ -1,4 +1,4 @@
-import React, { useEffect, useState, forwardRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,7 +7,9 @@ import {
   Send,
   Eraser,
   Check,
+  Keyboard,
 } from "lucide-react";
+import { forwardRef } from "react";
 
 function formatRelative(date) {
   if (!date) return "";
@@ -20,6 +22,88 @@ function formatRelative(date) {
   return `Saved ${hr}h ago`;
 }
 
+const SHORTCUTS = [
+  { keys: ["1"–"4"], label: "Select option" },
+  { keys: ["←", "→"], label: "Prev / Next question" },
+  { keys: ["F"], label: "Toggle flag" },
+  { keys: ["Ctrl", "Enter"], label: "Save & Next" },
+  { keys: ["Ctrl", "Shift", "Enter"], label: "Open submit dialog" },
+];
+
+function ShortcutHint() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handler = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open]);
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Keyboard shortcuts"
+        aria-expanded={open}
+        className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      >
+        <Keyboard className="h-3.5 w-3.5" />
+        Shortcuts
+      </button>
+      {open && (
+        <div className="absolute bottom-full mb-2 left-0 z-30 w-64 rounded-xl bg-white shadow-lg ring-1 ring-slate-200 p-3 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">
+            Keyboard Shortcuts
+          </p>
+          <ul className="space-y-1.5">
+            <li className="flex items-center justify-between text-xs text-slate-700">
+              <span>Select option</span>
+              <span className="flex gap-1">
+                {["1", "2", "3", "4"].map((k) => (
+                  <kbd key={k} className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px]">{k}</kbd>
+                ))}
+              </span>
+            </li>
+            <li className="flex items-center justify-between text-xs text-slate-700">
+              <span>Prev / Next</span>
+              <span className="flex gap-1">
+                <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px]">←</kbd>
+                <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px]">→</kbd>
+              </span>
+            </li>
+            <li className="flex items-center justify-between text-xs text-slate-700">
+              <span>Toggle flag</span>
+              <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px]">F</kbd>
+            </li>
+            <li className="flex items-center justify-between text-xs text-slate-700">
+              <span>Save &amp; Next</span>
+              <span className="flex gap-1 items-center">
+                <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px]">Ctrl</kbd>
+                <span className="text-slate-400 text-[10px]">+</span>
+                <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>
+              </span>
+            </li>
+            <li className="flex items-center justify-between text-xs text-slate-700">
+              <span>Submit dialog</span>
+              <span className="flex gap-1 items-center">
+                <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px]">Ctrl</kbd>
+                <span className="text-slate-400 text-[10px]">+</span>
+                <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px]">⇧</kbd>
+                <span className="text-slate-400 text-[10px]">+</span>
+                <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>
+              </span>
+            </li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const QuestionCard = forwardRef(function QuestionCard(
   {
     question,
@@ -30,6 +114,7 @@ const QuestionCard = forwardRef(function QuestionCard(
     onSelect,
     onPrev,
     onNext,
+    onSaveAnswer,
     onToggleFlag,
     onClear,
     onSubmit,
@@ -172,7 +257,18 @@ const QuestionCard = forwardRef(function QuestionCard(
           Prev
         </button>
 
-        {!isLast && (
+        {isLast ? (
+          /* On the last question: show "Save Answer" instead of hiding Save & Next */
+          <button
+            type="button"
+            onClick={onSaveAnswer}
+            disabled={selectedOption === null}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+          >
+            <Save className="h-4 w-4" />
+            Save Answer
+          </button>
+        ) : (
           <button
             type="button"
             onClick={onNext}
@@ -184,14 +280,17 @@ const QuestionCard = forwardRef(function QuestionCard(
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={onSubmit}
-          className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 transition ml-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"
-        >
-          <Send className="h-4 w-4" />
-          Submit
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <ShortcutHint />
+          <button
+            type="button"
+            onClick={onSubmit}
+            className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"
+          >
+            <Send className="h-4 w-4" />
+            Submit
+          </button>
+        </div>
       </div>
     </div>
   );

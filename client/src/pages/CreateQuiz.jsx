@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 import {
   ArrowLeft,
   Plus,
@@ -23,6 +23,11 @@ import PreviewModal from "../components/CreateQuiz/PreviewModal";
 const TITLE_MAX = 100;
 const DRAFT_STORAGE_KEY = "exam.draft.createQuiz";
 const AUTOSAVE_DEBOUNCE_MS = 800;
+
+/** Generates a stable unique id for a question object (avoids index-as-key issues). */
+function generateQuestionId() {
+  return `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 function generateExamCode() {
   const chars =
@@ -65,6 +70,11 @@ function CreateQuiz() {
   // ---- Validation -----------------------------------------------------
   const trimmedTitle = title.trim();
   const titleValid = trimmedTitle.length > 0;
+  const durationNum = Number(durationMinutes);
+  const durationValid =
+    durationMinutes === "" || (Number.isFinite(durationNum) && durationNum >= 1);
+  const timeWindowValid =
+    !startTime || !endTime || new Date(endTime) > new Date(startTime);
   const everyQuestionValid =
     questions.length > 0 &&
     questions.every(
@@ -75,11 +85,12 @@ function CreateQuiz() {
         q.correctAnswerIndex >= 0 &&
         q.correctAnswerIndex < q.options.length
     );
-  const canSubmit = titleValid && everyQuestionValid && !submitting;
+  const canSubmit =
+    titleValid && everyQuestionValid && durationValid && timeWindowValid && !submitting;
 
   // ---- Question mutations ---------------------------------------------
   const handleAddQuestion = (q) => {
-    setQuestions((prev) => [...prev, q]);
+    setQuestions((prev) => [...prev, { ...q, _id: generateQuestionId() }]);
     setShowAddForm(false);
     toast.success("Question added");
   };
@@ -98,7 +109,7 @@ function CreateQuiz() {
 
   const handleDuplicateQuestion = (index) => {
     setQuestions((prev) => {
-      const copy = { ...prev[index] };
+      const copy = { ...prev[index], _id: generateQuestionId() };
       const next = [...prev];
       next.splice(index + 1, 0, copy);
       return next;
@@ -131,6 +142,7 @@ function CreateQuiz() {
     setQuestions((prev) => [
       ...prev,
       ...generatedQuestions.map((q) => ({
+        _id: generateQuestionId(),
         questionText: q.questionText,
         options: q.options,
         correctAnswerIndex: q.correctAnswerIndex,
@@ -306,6 +318,25 @@ function CreateQuiz() {
       { duration: Infinity, position: "top-right" }
     );
   }, []);
+
+  // beforeunload guard: warn if there are unsaved changes and the user tries to leave
+  useEffect(() => {
+    const hasContent = title.trim().length > 0 || questions.length > 0;
+    if (!hasContent || submitting) return undefined;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [title, questions, submitting]);
+
+  // React Router navigation block when there's unsaved content
+  const hasUnsavedContent = (title.trim().length > 0 || questions.length > 0) && !submitting;
+  useBlocker(() => {
+    if (!hasUnsavedContent) return false;
+    return !window.confirm("You have unsaved changes. Leave this page?");
+  });
 
   // Tick `now` every second so the relative-time indicator stays fresh.
   useEffect(() => {
@@ -554,7 +585,7 @@ function CreateQuiz() {
             <div className="space-y-4">
               {questions.map((q, i) => (
                 <QuestionCard
-                  key={`q-${i}`}
+                  key={q._id || `q-${i}`}
                   index={i}
                   question={q}
                   isFirst={i === 0}
@@ -593,6 +624,12 @@ function CreateQuiz() {
                     • Every question needs text, all options filled, and a
                     correct answer selected.
                   </p>
+                )}
+                {!durationValid && (
+                  <p>• Duration must be at least 1 minute.</p>
+                )}
+                {!timeWindowValid && (
+                  <p>• End time must be after start time.</p>
                 )}
               </div>
             </div>

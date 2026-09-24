@@ -68,9 +68,14 @@ function AttemptTest() {
   const [trustScore, setTrustScore] = useState(100);
   const [violations, setViolations] = useState([]);
   const [lastSavedAt, setLastSavedAt] = useState(null);
+  // countdown shown before auto-submit fires (null = not counting)
+  const [autoSubmitCountdown, setAutoSubmitCountdown] = useState(null);
+  const autoSubmitCountdownRef = useRef(null);
   const savingRef = useRef(false);
   const questionCardRef = useRef(null);
   const lastFocusedIndexRef = useRef(-1);
+  // tracks whether the exam has been submitted so beforeunload fires correctly
+  const submittedRef = useRef(false);
 
   // ----- Initial fetch -------------------------------------------------
   useEffect(() => {
@@ -110,18 +115,24 @@ function AttemptTest() {
   }, [quizId]);
 
   // ----- Timer ---------------------------------------------------------
+  // Depend on a stable sentinel (null → "not yet set", otherwise "running").
+  // Using a boolean flag avoids re-creating the interval on every tick.
+  const timerStartedRef = useRef(false);
   useEffect(() => {
     if (remainingTime === null) return undefined;
+    if (timerStartedRef.current) return undefined; // already running
     if (remainingTime <= 0) {
       handleAutoSubmitRef.current?.();
       return undefined;
     }
+    timerStartedRef.current = true;
     timerRef.current = setInterval(() => {
       setRemainingTime((prev) => {
         if (prev === null) return prev;
         if (prev <= 1) {
           clearInterval(timerRef.current);
-          handleAutoSubmitRef.current?.();
+          // Trigger countdown before auto-submit
+          autoSubmitCountdownRef.current?.();
           return 0;
         }
         return prev - 1;
@@ -232,6 +243,7 @@ function AttemptTest() {
 
   // ----- Submit (refs to break timer/visibility ordering) --------------
   const handleSubmit = useCallback(async () => {
+    submittedRef.current = true;
     setSubmitLoading(true);
     try {
       const response = await API.post(`/test/submit`, { id: quizId });
@@ -247,6 +259,7 @@ function AttemptTest() {
         },
       });
     } catch (error) {
+      submittedRef.current = false;
       console.error("Error during submission:", error);
       toast.error("Submission failed. Please try again.");
     } finally {
@@ -254,16 +267,43 @@ function AttemptTest() {
     }
   }, [nav, quizId, testId, testTitle]);
 
-  const handleAutoSubmit = useCallback(async () => {
-    await handleSubmit();
-  }, [handleSubmit]);
+  // Auto-submit: show a 5-second countdown toast before firing submit
+  const handleAutoSubmit = useCallback(() => {
+    let remaining = 5;
+    setAutoSubmitCountdown(remaining);
+    const id = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(id);
+        setAutoSubmitCountdown(null);
+        handleSubmitRef.current?.();
+      } else {
+        setAutoSubmitCountdown(remaining);
+      }
+    }, 1000);
+  }, []);
 
   const handleSubmitRef = useRef(handleSubmit);
   const handleAutoSubmitRef = useRef(handleAutoSubmit);
+  // Store the interval-clearing fn so the timer effect can trigger it
+  useEffect(() => {
+    autoSubmitCountdownRef.current = handleAutoSubmit;
+  }, [handleAutoSubmit]);
   useEffect(() => {
     handleSubmitRef.current = handleSubmit;
     handleAutoSubmitRef.current = handleAutoSubmit;
   }, [handleSubmit, handleAutoSubmit]);
+
+  // ----- beforeunload guard -------------------------------------------
+  useEffect(() => {
+    const handler = (e) => {
+      if (submittedRef.current || submitLoading) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [submitLoading]);
 
   // ----- Option / flag / save -----------------------------------------
   const handleOption = (i) => {
@@ -504,7 +544,7 @@ function AttemptTest() {
             violations={violations}
           />
           <CameraThumbnail
-            userId={JSON.parse(localStorage.getItem("user"))._id}
+            userId={JSON.parse(localStorage.getItem("user") || "{}")?._id}
             testId={quizId}
             onSuspiciousActivity={showPopup}
           />
@@ -524,7 +564,8 @@ function AttemptTest() {
               flagged={Boolean(reviewFlags[index])}
               onSelect={handleOption}
               onPrev={handlePrev}
-              onNext={handleNext}
+              onNext={handleSaveAndNext}
+              onSaveAnswer={() => option !== null && saveResponse(option, false)}
               onToggleFlag={handleToggleFlag}
               onClear={handleClear}
               onSubmit={() => setSubmitPopup(true)}
@@ -576,6 +617,35 @@ function AttemptTest() {
               : `${Math.floor(remainingTime / 60)}:${String(remainingTime % 60).padStart(2, "0")}`
           }
         />
+      )}
+      {autoSubmitCountdown !== null && (
+        <div
+          role="alertdialog"
+          aria-live="assertive"
+          aria-atomic="true"
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div className="bg-white rounded-2xl shadow-2xl ring-1 ring-rose-200 p-6 sm:p-8 max-w-sm w-full text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 ring-1 ring-rose-200">
+              <span className="text-2xl font-extrabold text-rose-600">{autoSubmitCountdown}</span>
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900">Time&apos;s up!</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Your test will be submitted automatically in{" "}
+              <strong>{autoSubmitCountdown}</strong> second{autoSubmitCountdown !== 1 ? "s" : ""}.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setAutoSubmitCountdown(null);
+                handleSubmit();
+              }}
+              className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"
+            >
+              Submit now
+            </button>
+          </div>
+        </div>
       )}
       {popupMessage && (
         <Popup message={popupMessage} onClose={() => setPopupMessage("")} />

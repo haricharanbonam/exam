@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import API from "../utils/axios";
 import { useParams, useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import Navbar from "../components/Navbar";
 
 const Profile = () => {
   const { username } = useParams();
@@ -33,57 +35,73 @@ const Profile = () => {
     }
   }, [username, searchParams]);
 
-  const handleLinkGitHub = async () => {
-    try {
-      // Send authenticated request to get the redirect URL
-      const res = await API.get("/github/link", {
-        headers: {
-          Accept: "application/json",
-        },
-      });
-      
-      const { url } = res.data.data;
-      if (url) {
-        window.location.href = url;
-      }
-    } catch (err) {
-      console.error("Failed to get GitHub link URL:", err);
-      alert("Failed to initiate GitHub link. Please try again.");
+const handleLinkGitHub = async () => {
+  try {
+    const res = await API.get("/github/link", {
+      headers: { Accept: "application/json" },
+    });
+    const { url } = res.data.data;
+    if (url) {
+      window.location.href = url;
     }
-  };
+  } catch (err) {
+    console.error("Failed to get GitHub link URL:", err);
+    toast.error("Failed to initiate GitHub link. Please try again.");
+  }
+};
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
-  if (!profile)
-    return <div className="text-center mt-10">Profile not found.</div>;
+if (loading) {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="h-10 w-10 rounded-full border-2 border-t-indigo-600 border-slate-200 animate-spin" />
+      </div>
+    </div>
+  );
+}
+
+if (!profile) {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
+      <div className="flex items-center justify-center h-[60vh]">
+        <p className="text-slate-500">Profile not found.</p>
+      </div>
+    </div>
+  );
+}
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 md:px-12 lg:px-24 transition-all">
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
+      <div className="py-8 px-4 md:px-12 lg:px-24">
       {showSuccess && (
-        <div className="max-w-3xl mx-auto mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-xl animate-bounce shadow-sm flex items-center justify-center font-bold">
-          <span className="mr-2">🎉</span> GitHub account linked!
+        <div className="max-w-3xl mx-auto mb-4 p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl shadow-sm flex items-center justify-center font-semibold">
+          🎉 GitHub account linked successfully!
         </div>
       )}
-      <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-3xl p-8 border border-gray-100">
+      <div className="max-w-3xl mx-auto bg-white shadow-sm rounded-2xl p-8 ring-1 ring-slate-200">
         {/* Avatar */}
         <div className="flex justify-center mb-6">
           {profile.avatarUrl ? (
             <img
               src={profile.avatarUrl}
               alt="Profile"
-              className="w-28 h-28 rounded-full object-cover border-2 border-blue-500"
+              className="w-28 h-28 rounded-full object-cover border-2 border-indigo-500"
             />
           ) : (
-            <div className="w-28 h-28 rounded-full bg-blue-500 text-white flex items-center justify-center text-4xl font-bold">
+            <div className="w-28 h-28 rounded-full bg-indigo-600 text-white flex items-center justify-center text-4xl font-bold">
               {getInitial(profile.fullName)}
             </div>
           )}
         </div>
 
         <div className="text-center mb-8 space-y-2">
-          <h2 className="text-3xl font-extrabold text-gray-900">{profile.fullName}</h2>
+          <h2 className="text-3xl font-extrabold text-slate-900">{profile.fullName}</h2>
           <p className="text-indigo-600 font-medium">@{profile.username}</p>
           <div className="flex flex-wrap justify-center gap-2 mt-2">
-            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full uppercase tracking-wider">
+            <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full uppercase tracking-wider">
               {profile.role}
             </span>
             {profile.githubUsername ? (
@@ -103,35 +121,36 @@ const Profile = () => {
               )
             )}
           </div>
-          <p className="text-sm text-gray-500">{profile.email}</p>
+          <p className="text-sm text-slate-500">{profile.email}</p>
         </div>
 
         {/* Attempted Tests */}
         <div>
-          <h3 className="text-lg font-semibold mb-2">Attempted Tests</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-3">Attempted Tests</h3>
           {profile.attemptedTests.length > 0 ? (
             <ul className="space-y-3">
               {profile.attemptedTests.map((test, idx) => (
                 <li
                   key={idx}
-                  className="p-4 bg-gray-100 rounded-lg flex justify-between items-center"
+                  className="p-4 bg-slate-50 ring-1 ring-slate-200 rounded-xl flex justify-between items-center"
                 >
                   <div>
-                    <h4 className="font-medium">{test.testName}</h4>
-                    <p className="text-sm text-gray-600">
+                    <h4 className="font-medium text-slate-900">{test.testName}</h4>
+                    <p className="text-sm text-slate-500">
                       {new Date(test.date).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="text-blue-600 font-bold text-lg">
+                  <div className="text-indigo-600 font-bold text-lg">
                     {test.score}
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500">No attempted tests yet.</p>
+            <p className="text-slate-500 text-sm">No attempted tests yet.</p>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

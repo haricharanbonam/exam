@@ -24,11 +24,26 @@ function QuestionEditor({ initial, mode, onSave, onCancel }) {
   const isMCQ = type === "mcq";
 
   const switchType = (next) => {
+    if (next === type) return;
+    // If switching away from MCQ with filled options, confirm before wiping them
+    if (
+      type === "mcq" &&
+      next === "truefalse" &&
+      options.some((o) => o.trim().length > 0)
+    ) {
+      if (
+        !window.confirm(
+          "Switching to True / False will clear your current options. Continue?"
+        )
+      ) {
+        return;
+      }
+    }
     setType(next);
     if (next === "truefalse") {
       setOptions([...TF_OPTIONS]);
       setCorrectAnswerIndex(0);
-    } else if (isMCQ === false || (initial?.type === "truefalse" && next === "mcq")) {
+    } else {
       // Switching from T/F to MCQ: provide 4 blank options
       setOptions(["", "", "", ""]);
       setCorrectAnswerIndex(0);
