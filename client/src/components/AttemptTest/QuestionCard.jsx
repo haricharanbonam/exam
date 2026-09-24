@@ -22,14 +22,6 @@ function formatRelative(date) {
   return `Saved ${hr}h ago`;
 }
 
-const SHORTCUTS = [
-  { keys: ["1"–"4"], label: "Select option" },
-  { keys: ["←", "→"], label: "Prev / Next question" },
-  { keys: ["F"], label: "Toggle flag" },
-  { keys: ["Ctrl", "Enter"], label: "Save & Next" },
-  { keys: ["Ctrl", "Shift", "Enter"], label: "Open submit dialog" },
-];
-
 function ShortcutHint() {
   const [open, setOpen] = useState(false);
 
